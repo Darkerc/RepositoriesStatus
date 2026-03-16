@@ -9,7 +9,18 @@
 <body>
   <header>
     <h1>Contributions</h1>
-    <button id="btn-refresh" title="Refresh data" class="icon-btn" disabled>&#x21bb;</button>
+    <div class="header-actions">
+      <button id="btn-github" class="provider-btn" title="Connect GitHub">
+        <span class="provider-dot gh-dot"></span>
+        <span class="provider-label">GitHub</span>
+      </button>
+      <button id="btn-gitlab" class="provider-btn" title="Connect GitLab">
+        <span class="provider-dot gl-dot"></span>
+        <span class="provider-label">GitLab</span>
+      </button>
+      <button id="btn-refresh" class="icon-btn" title="Refresh" disabled>&#x21bb;</button>
+      <button id="btn-options" class="icon-btn" title="Options">&#x2699;</button>
+    </div>
   </header>
 
   <div id="status-bar" class="status-bar hidden"></div>
@@ -18,22 +29,22 @@
     <p class="placeholder">Connect a provider to see your contributions.</p>
   </div>
 
-  <div class="providers">
-    <div class="provider-row" id="github-row">
-      <span class="provider-icon">&#9679;</span>
-      <span class="provider-name">GitHub</span>
-      <button id="btn-github" class="btn btn-connect">Connect</button>
+  <div id="activity-section" class="activity-section">
+    <div id="activity-feed" class="activity-feed">
+      <div class="section-header">
+        <h2>Recent Activity</h2>
+      </div>
+      <div id="activity-list" class="activity-list"></div>
     </div>
-    <div class="provider-row" id="gitlab-row">
-      <span class="provider-icon gitlab-icon">&#9679;</span>
-      <span class="provider-name">GitLab</span>
-      <button id="btn-gitlab" class="btn btn-connect">Connect</button>
+
+    <div id="activity-detail" class="activity-detail hidden">
+      <div class="detail-header">
+        <button id="btn-back" class="back-btn">&larr; Back</button>
+        <span id="detail-type" class="detail-type-badge"></span>
+      </div>
+      <div id="detail-body" class="detail-body"></div>
     </div>
   </div>
-
-  <footer>
-    <a href="#" id="btn-options">Options</a>
-  </footer>
 
   <script type="module" src="popup.js"></script>
 </body>
