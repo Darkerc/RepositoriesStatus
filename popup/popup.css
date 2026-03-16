@@ -1,0 +1,245 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html{
+  width: 700px;
+}
+
+html, body {
+  padding: 0;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 200px;
+}
+
+body {
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  color: #24292f;
+  background: #ffffff;
+  padding: 12px 16px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+h1 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.icon-btn {
+  background: none;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 8px;
+  color: #57606a;
+  transition: background 0.15s;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: #f6f8fa;
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.icon-btn.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Status bar */
+.status-bar {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.status-bar.hidden {
+  display: none;
+}
+
+.status-bar.error {
+  background: #ffebe9;
+  color: #82071e;
+  border: 1px solid #ff8182;
+}
+
+.status-bar.warning {
+  background: #fff8c5;
+  color: #6a5900;
+  border: 1px solid #d4a72c;
+}
+
+.status-bar.info {
+  background: #ddf4ff;
+  color: #0550ae;
+  border: 1px solid #54aeff;
+}
+
+/* Heatmap */
+.heatmap-container {
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.placeholder {
+  color: #8b949e;
+  text-align: center;
+  padding: 30px 0;
+}
+
+.heatmap-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.heatmap-label {
+  font-size: 10px;
+  fill: #8b949e;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+.heatmap-cell {
+  shape-rendering: geometricPrecision;
+}
+
+.heatmap-cell:hover {
+  stroke: #24292f;
+  stroke-width: 1;
+}
+
+/* Legend */
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  justify-content: flex-end;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #8b949e;
+}
+
+.legend-cell {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+}
+
+.legend-label {
+  margin: 0 3px;
+}
+
+.legend-divider {
+  width: 1px;
+  height: 11px;
+  background: #d0d7de;
+  margin: 0 6px;
+}
+
+/* Providers */
+.providers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #d8dee4;
+  padding-top: 12px;
+}
+
+.provider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.provider-icon {
+  color: #30a14e;
+  font-size: 14px;
+}
+
+.gitlab-icon {
+  color: #8b5cf6;
+}
+
+.provider-name {
+  font-weight: 500;
+  flex: 1;
+}
+
+.btn {
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+
+.btn-connect {
+  background: #f6f8fa;
+  color: #24292f;
+}
+
+.btn-connect:hover {
+  background: #eaeef2;
+}
+
+.btn-disconnect {
+  background: #ffffff;
+  color: #cf222e;
+  border-color: #cf222e;
+}
+
+.btn-disconnect:hover {
+  background: #ffebe9;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.provider-status {
+  font-size: 11px;
+  color: #8b949e;
+}
+
+footer {
+  margin-top: 12px;
+  text-align: center;
+  border-top: 1px solid #d8dee4;
+  padding-top: 8px;
+}
+
+footer a {
+  color: #57606a;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+footer a:hover {
+  color: #0969da;
+  text-decoration: underline;
+}

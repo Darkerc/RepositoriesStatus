@@ -1,0 +1,11 @@
+# OAuth credentials (never commit secrets)
+lib/config.js
+
+# Extension build artifacts
+*.crx
+*.pem
+*.zip
+
+# OS files
+.DS_Store
+Thumbs.db

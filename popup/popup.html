@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="popup.css">
+  <title>Contribution Heatmap</title>
+</head>
+<body>
+  <header>
+    <h1>Contributions</h1>
+    <button id="btn-refresh" title="Refresh data" class="icon-btn" disabled>&#x21bb;</button>
+  </header>
+
+  <div id="status-bar" class="status-bar hidden"></div>
+
+  <div id="heatmap-container" class="heatmap-container">
+    <p class="placeholder">Connect a provider to see your contributions.</p>
+  </div>
+
+  <div class="providers">
+    <div class="provider-row" id="github-row">
+      <span class="provider-icon">&#9679;</span>
+      <span class="provider-name">GitHub</span>
+      <button id="btn-github" class="btn btn-connect">Connect</button>
+    </div>
+    <div class="provider-row" id="gitlab-row">
+      <span class="provider-icon gitlab-icon">&#9679;</span>
+      <span class="provider-name">GitLab</span>
+      <button id="btn-gitlab" class="btn btn-connect">Connect</button>
+    </div>
+  </div>
+
+  <footer>
+    <a href="#" id="btn-options">Options</a>
+  </footer>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

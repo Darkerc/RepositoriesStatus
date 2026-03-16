@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Contribution Heatmap - Options</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      color: #24292f;
+      padding: 20px;
+      max-width: 500px;
+    }
+    h2 { font-size: 16px; margin-bottom: 16px; }
+    label { display: block; font-weight: 500; margin-bottom: 6px; }
+    .help { font-size: 12px; color: #57606a; margin-bottom: 8px; }
+    input[type="url"] {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    input[type="url"]:focus {
+      outline: none;
+      border-color: #0969da;
+      box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.15);
+    }
+    .btn {
+      margin-top: 12px;
+      padding: 6px 16px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      background: #2da44e;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn:hover { background: #218838; }
+    .message {
+      margin-top: 10px;
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+    .message.success { background: #dafbe1; color: #116329; }
+    .message.error { background: #ffebe9; color: #82071e; }
+    .message.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h2>GitLab Settings</h2>
+
+  <label for="gitlab-url">Self-hosted GitLab URL</label>
+  <p class="help">Leave empty to use gitlab.com. Example: https://gitlab.mycompany.com</p>
+  <input type="url" id="gitlab-url" placeholder="https://gitlab.com">
+
+  <button class="btn" id="btn-save">Save</button>
+  <div id="message" class="message hidden"></div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>
