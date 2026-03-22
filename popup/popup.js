@@ -403,10 +403,20 @@ async function showCommitDetail(item) {
     <div class="detail-date">${formatDate(item.date)}</div>
   `;
 
-  // Mostrar el SHA abreviado del commit (primeros 7 caracteres)
-  if (firstCommit?.sha) {
-    html += `<div class="detail-sha">${firstCommit.sha.substring(0, 7)}</div>`;
+  // Si no hay SHAs individuales (commits agregados de GraphQL), mostrar resumen con enlace
+  if (!firstCommit?.sha) {
+    const repoUrl = item.provider === 'github'
+      ? `https://github.com/${item.repo}/commits`
+      : item.url;
+    if (repoUrl) {
+      html += `<a class="detail-link" href="${repoUrl}" target="_blank">View commits on ${item.provider === 'github' ? 'GitHub' : 'GitLab'} &rarr;</a>`;
+    }
+    detailBody.innerHTML = html;
+    return;
   }
+
+  // Mostrar el SHA abreviado del commit (primeros 7 caracteres)
+  html += `<div class="detail-sha">${firstCommit.sha.substring(0, 7)}</div>`;
 
   // Si el push incluye múltiples commits, listarlos todos
   if (commits.length > 1) {
@@ -427,7 +437,7 @@ async function showCommitDetail(item) {
       type: 'FETCH_COMMIT_DETAIL',
       provider: item.provider,
       repo: item.repo,
-      sha: firstCommit?.sha,
+      sha: firstCommit.sha,
       projectId: item.projectId, // Solo necesario para GitLab
     });
 
