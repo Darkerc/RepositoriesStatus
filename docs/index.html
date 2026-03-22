@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — RepositoriesStatus</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-dim: rgba(88, 166, 255, 0.1);
+            --green: #3fb950;
+            --green-dim: rgba(63, 185, 80, 0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        .grain {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            background-size: 256px;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: rgba(13, 17, 23, 0.85);
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--green), var(--accent));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--bg);
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        header h1 strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 3rem 2rem 6rem;
+        }
+
+        .hero {
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--green);
+            background: var(--green-dim);
+            padding: 0.3rem 0.75rem;
+            border-radius: 100px;
+            margin-bottom: 1.25rem;
+        }
+
+        .hero h2 {
+            font-family: 'Fraunces', serif;
+            font-size: 2.25rem;
+            font-weight: 600;
+            line-height: 1.2;
+            margin-bottom: 0.75rem;
+        }
+
+        .hero p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+        }
+
+        .effective-date {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        section {
+            margin-bottom: 2.5rem;
+        }
+
+        section h3 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        section h3 .icon {
+            width: 28px;
+            height: 28px;
+            background: var(--accent-dim);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        section p {
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .data-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .data-card h4 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--accent);
+            margin-bottom: 0.6rem;
+        }
+
+        .data-card p {
+            font-size: 0.95rem;
+            margin-bottom: 0;
+        }
+
+        .highlight {
+            background: var(--green-dim);
+            border: 1px solid rgba(63, 185, 80, 0.25);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .highlight p {
+            color: var(--green);
+            font-weight: 500;
+            margin-bottom: 0;
+        }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            .hero h2 { font-size: 1.75rem; }
+            .container { padding: 2rem 1.25rem 4rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+
+    <header>
+        <div class="logo">RS</div>
+        <h1><strong>RepositoriesStatus</strong> · Privacy Policy</h1>
+    </header>
+
+    <div class="container">
+        <div class="hero">
+            <span class="badge">Privacy Policy</span>
+            <h2>Your data stays with you</h2>
+            <p>RepositoriesStatus is a browser extension that displays a unified contribution heatmap from GitHub and GitLab. We are committed to transparency about how your data is handled.</p>
+            <p class="effective-date">Effective date: March 22, 2026</p>
+        </div>
+
+        <section>
+            <h3><span class="icon">📦</span> What data we collect</h3>
+            <p>RepositoriesStatus collects and stores the following data <strong>locally on your device</strong>:</p>
+
+            <div class="data-card">
+                <h4>Authentication tokens</h4>
+                <p>OAuth access tokens for GitHub and GitLab, obtained through the standard OAuth 2.0 flow via your browser. These tokens allow the extension to fetch your contribution data from both platforms.</p>
+            </div>
+
+            <div class="data-card">
+                <h4>Contribution data</h4>
+                <p>Your public contribution history (commits, pull requests, merge requests) fetched from the GitHub and GitLab APIs. This data is cached locally to reduce redundant API calls and improve performance.</p>
+            </div>
+
+            <div class="data-card">
+                <h4>User preferences</h4>
+                <p>Display settings and configuration options you choose within the extension (e.g., theme, refresh interval).</p>
+            </div>
+        </section>
+
+        <section>
+            <h3><span class="icon">🔒</span> How your data is stored</h3>
+            <p>All data is stored locally on your device using the browser's <code>chrome.storage</code> API. No data is transmitted to, processed by, or stored on any external server owned or operated by us. Your tokens and cached data never leave your browser.</p>
+        </section>
+
+        <section>
+            <h3><span class="icon">🌐</span> Third-party services</h3>
+            <p>The extension communicates directly with the following third-party APIs to retrieve your contribution data:</p>
+
+            <div class="data-card">
+                <h4>GitHub API</h4>
+                <p>Used to fetch your contribution history from GitHub. Subject to <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub's Privacy Statement</a>.</p>
+            </div>
+
+            <div class="data-card">
+                <h4>GitLab API</h4>
+                <p>Used to fetch your contribution history from GitLab. Subject to <a href="https://about.gitlab.com/privacy/" target="_blank" rel="noopener">GitLab's Privacy Policy</a>.</p>
+            </div>
+
+            <p>We do not share, sell, or transfer your data to any other third parties.</p>
+        </section>
+
+        <section>
+            <h3><span class="icon">⏰</span> Background activity</h3>
+            <p>The extension uses the <code>chrome.alarms</code> API to periodically refresh your contribution data in the background. This ensures your heatmap stays up to date without manual intervention. These background requests go exclusively to the GitHub and GitLab APIs.</p>
+        </section>
+
+        <section>
+            <h3><span class="icon">🗑️</span> Data deletion</h3>
+            <p>You can delete all stored data at any time by removing the extension from your browser. This will immediately erase all locally stored tokens, cached data, and preferences. You can also revoke the extension's access from your GitHub and GitLab account settings.</p>
+        </section>
+
+        <section>
+            <h3><span class="icon">👤</span> Children's privacy</h3>
+            <p>This extension is not directed at children under the age of 13 and does not knowingly collect personal information from children.</p>
+        </section>
+
+        <section>
+            <h3><span class="icon">✏️</span> Changes to this policy</h3>
+            <p>We may update this Privacy Policy from time to time. Any changes will be reflected on this page with an updated effective date. Continued use of the extension after changes constitutes acceptance of the revised policy.</p>
+        </section>
+
+        <div class="highlight">
+            <p>RepositoriesStatus does not collect analytics, does not use tracking pixels, and does not transmit any personal data to external servers. Your data stays on your device.</p>
+        </div>
+
+        <section>
+            <h3><span class="icon">📬</span> Contact</h3>
+            <p>If you have questions or concerns about this Privacy Policy, please open an issue on the <a href="https://github.com/Darkerc/RepositoriesStatus/issues" target="_blank" rel="noopener">GitHub repository</a>.</p>
+        </section>
+    </div>
+
+    <footer>
+        <p>RepositoriesStatus &copy; 2026 · <a href="https://github.com/Darkerc/RepositoriesStatus" target="_blank" rel="noopener">GitHub Repository</a></p>
+    </footer>
+</body>
+</html>
