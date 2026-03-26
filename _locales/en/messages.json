@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "GitHub + GitLab Contribution Heatmap"
+  },
+  "extDescription": {
+    "message": "Combines GitHub and GitLab contribution graphs into a single heatmap view."
+  }
+}

@@ -51,13 +51,13 @@
   </style>
 </head>
 <body>
-  <h2>GitLab Settings</h2>
+  <h2 data-i18n="options.gitlabSettings">GitLab Settings</h2>
 
-  <label for="gitlab-url">Self-hosted GitLab URL</label>
-  <p class="help">Leave empty to use gitlab.com. Example: https://gitlab.mycompany.com</p>
-  <input type="url" id="gitlab-url" placeholder="https://gitlab.com">
+  <label for="gitlab-url" data-i18n="options.gitlabUrlLabel">Self-hosted GitLab URL</label>
+  <p class="help" data-i18n="options.gitlabUrlHelp">Leave empty to use gitlab.com. Example: https://gitlab.mycompany.com</p>
+  <input type="url" id="gitlab-url" data-i18n-placeholder="options.gitlabPlaceholder" placeholder="https://gitlab.com">
 
-  <button class="btn" id="btn-save">Save</button>
+  <button class="btn" id="btn-save" data-i18n="options.save">Save</button>
   <div id="message" class="message hidden"></div>
 
   <script type="module" src="options.js"></script>

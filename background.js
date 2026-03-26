@@ -27,7 +27,7 @@
  *   -> devuelve resultado al popup via sendResponse().
  */
 
-import { authenticateGitHub, authenticateGitLab, getAuthState, removeToken } from './lib/auth.js';
+import { authenticateGitHub, authenticateGitLab, getAuthState, removeToken, getToken, revokeGitHubGrant } from './lib/auth.js';
 import { fetchGitHubContributions, fetchGitHubActivity, fetchGitHubCommitDetail } from './lib/github-api.js';
 import { fetchGitLabContributions, fetchGitLabActivity, fetchGitLabCommitDetail } from './lib/gitlab-api.js';
 import { getCached, setCache, clearCache } from './lib/cache.js';
@@ -69,8 +69,13 @@ async function handleMessage(message) {
       return { success: true };
     }
 
-    // Desconexión de un proveedor: eliminar token, caché y datos asociados
+    // Desconexión de un proveedor: revocar grant, eliminar token, caché y datos asociados
     case 'DISCONNECT': {
+      // Revocar la autorización OAuth en GitHub para que la próxima conexión pida permisos
+      if (message.provider === 'github') {
+        const token = await getToken('github');
+        if (token) await revokeGitHubGrant(token);
+      }
       await removeToken(message.provider);
       // Limpiar la caché de contribuciones y actividad del proveedor
       await clearCache(`${message.provider}_contributions`);

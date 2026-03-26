@@ -28,6 +28,7 @@
  */
 
 import { renderHeatmap } from '../lib/heatmap.js';
+import { initI18n, t, setLocale, getLocale, translatePage } from '../lib/i18n.js';
 
 // ── Referencias a elementos del DOM ──
 
@@ -97,6 +98,10 @@ document.addEventListener('DOMContentLoaded', init);
  * 3. Solicitar datos frescos a las APIs (contribuciones y actividad en paralelo).
  */
 async function init() {
+  await initI18n();
+  translatePage();
+  initLanguageSelector();
+
   await refreshAuthState();
   await loadCachedDataFromStorage();
 
@@ -137,22 +142,22 @@ function updateButtons() {
   // Actualizar botón de GitHub según el estado de conexión
   if (authState.github) {
     btnGitHub.className = 'provider-btn connected github-connected';
-    btnGitHub.title = 'Disconnect GitHub';
+    btnGitHub.title = t('button.disconnectGitHub');
     btnGitHub.querySelector('.provider-label').textContent = 'GitHub';
   } else {
     btnGitHub.className = 'provider-btn';
-    btnGitHub.title = 'Connect GitHub';
+    btnGitHub.title = t('button.connectGitHub');
     btnGitHub.querySelector('.provider-label').textContent = 'GitHub';
   }
 
   // Actualizar botón de GitLab según el estado de conexión
   if (authState.gitlab) {
     btnGitLab.className = 'provider-btn connected gitlab-connected';
-    btnGitLab.title = 'Disconnect GitLab';
+    btnGitLab.title = t('button.disconnectGitLab');
     btnGitLab.querySelector('.provider-label').textContent = 'GitLab';
   } else {
     btnGitLab.className = 'provider-btn';
-    btnGitLab.title = 'Connect GitLab';
+    btnGitLab.title = t('button.connectGitLab');
     btnGitLab.querySelector('.provider-label').textContent = 'GitLab';
   }
 
@@ -218,13 +223,13 @@ async function loadCachedDataFromStorage() {
 async function loadContributions(forceRefresh = false) {
   // Si no hay proveedores conectados, mostrar un mensaje placeholder
   if (!authState.github && !authState.gitlab) {
-    heatmapContainer.innerHTML = '<p class="placeholder">Connect a provider to see your contributions.</p>';
+    heatmapContainer.innerHTML = `<p class="placeholder">${t('popup.placeholder')}</p>`;
     return;
   }
 
   // Mostrar indicador de carga solo si no tenemos datos previos para mostrar
   if (!githubData && !gitlabData) {
-    showStatus('Loading contributions...', 'info');
+    showStatus(t('status.loading'), 'info');
   }
   // Animar el botón de refresco (gira mientras se cargan datos)
   btnRefresh.classList.add('spinning');
@@ -241,7 +246,7 @@ async function loadContributions(forceRefresh = false) {
 
     // Mostrar advertencia si alguno de los datos viene del caché obsoleto
     if (result.github?.stale || result.gitlab?.stale) {
-      showStatus('Showing cached data. Some data may be outdated.', 'warning');
+      showStatus(t('status.cachedData'), 'warning');
     } else {
       hideStatus();
     }
@@ -250,19 +255,19 @@ async function loadContributions(forceRefresh = false) {
     if (result.githubError === 'UNAUTHORIZED') {
       authState.github = false;
       updateButtons();
-      showStatus('GitHub session expired. Please reconnect.', 'warning');
+      showStatus(t('status.githubExpired'), 'warning');
     }
     if (result.gitlabError === 'UNAUTHORIZED') {
       authState.gitlab = false;
       updateButtons();
-      showStatus('GitLab session expired. Please reconnect.', 'warning');
+      showStatus(t('status.gitlabExpired'), 'warning');
     }
   } catch (err) {
     // Si hay datos previos, mostrar advertencia en vez de error
     if (githubData || gitlabData) {
-      showStatus('Could not refresh data. Showing cached results.', 'warning');
+      showStatus(t('status.refreshFailed'), 'warning');
     } else {
-      showStatus(`Failed to load contributions: ${err.message}`, 'error');
+      showStatus(t('status.loadFailed', { error: err.message }), 'error');
     }
   } finally {
     // Detener la animación del botón de refresco
@@ -300,7 +305,7 @@ async function loadActivity(forceRefresh = false) {
   } catch {
     // Si no hay actividades previas, mostrar mensaje de error en la lista
     if (allActivities.length === 0) {
-      activityList.innerHTML = '<div class="activity-empty">Could not load activity.</div>';
+      activityList.innerHTML = `<div class="activity-empty">${t('status.activityFailed')}</div>`;
     }
   }
 }
@@ -328,7 +333,7 @@ function mergeAndSortActivities(ghItems, glItems) {
  */
 function renderActivityList(items) {
   if (items.length === 0) {
-    activityList.innerHTML = '<div class="activity-empty">No recent activity.</div>';
+    activityList.innerHTML = `<div class="activity-empty">${t('status.noActivity')}</div>`;
     return;
   }
 
@@ -409,7 +414,7 @@ async function showCommitDetail(item) {
       ? `https://github.com/${item.repo}/commits`
       : item.url;
     if (repoUrl) {
-      html += `<a class="detail-link" href="${repoUrl}" target="_blank">View commits on ${item.provider === 'github' ? 'GitHub' : 'GitLab'} &rarr;</a>`;
+      html += `<a class="detail-link" href="${repoUrl}" target="_blank">${t(item.provider === 'github' ? 'detail.viewCommitsGitHub' : 'detail.viewCommitsGitLab')}</a>`;
     }
     detailBody.innerHTML = html;
     return;
@@ -428,7 +433,7 @@ async function showCommitDetail(item) {
   }
 
   // Indicador de carga mientras se obtienen los detalles de archivos
-  html += '<div class="detail-loading">Loading file details...</div>';
+  html += `<div class="detail-loading">${t('status.loadingFiles')}</div>`;
   detailBody.innerHTML = html;
 
   // Fase 2: Solicitar los detalles completos del commit al background
@@ -456,12 +461,12 @@ async function showCommitDetail(item) {
 
     // Enlace para ver el commit en la plataforma web
     if (detail.url) {
-      fullHtml += `<a class="detail-link" href="${detail.url}" target="_blank">View on ${item.provider === 'github' ? 'GitHub' : 'GitLab'} &rarr;</a>`;
+      fullHtml += `<a class="detail-link" href="${detail.url}" target="_blank">${t(item.provider === 'github' ? 'detail.viewOnGitHub' : 'detail.viewOnGitLab')}</a>`;
     }
 
     // Lista de archivos modificados con estadísticas
     if (detail.files && detail.files.length > 0) {
-      fullHtml += `<div class="detail-files-header">Files changed (${detail.files.length})</div>`;
+      fullHtml += `<div class="detail-files-header">${t('detail.filesChanged', { count: detail.files.length })}</div>`;
       fullHtml += '<ul class="detail-files">';
       for (const f of detail.files) {
         // Letra indicadora del estado: A=Added, D=Deleted, R=Renamed, M=Modified
@@ -484,7 +489,7 @@ async function showCommitDetail(item) {
   } catch {
     // Si falla la carga de detalles, solo actualizar el indicador de carga
     const loadingEl = detailBody.querySelector('.detail-loading');
-    if (loadingEl) loadingEl.textContent = 'Could not load file details.';
+    if (loadingEl) loadingEl.textContent = t('status.filesFailed');
   }
 }
 
@@ -503,7 +508,7 @@ function showGenericDetail(item) {
 
   // Mostrar la acción realizada (ej: 'opened', 'closed', 'merged')
   if (item.action) {
-    html += `<div class="detail-action">Action: ${escapeHtml(item.action)}</div>`;
+    html += `<div class="detail-action">${t('detail.action', { action: escapeHtml(item.action) })}</div>`;
   }
 
   // Mostrar el estado actual (ej: 'open', 'closed')
@@ -523,7 +528,7 @@ function showGenericDetail(item) {
 
   // Enlace para ver el recurso en la plataforma web
   if (item.url) {
-    html += `<a class="detail-link" href="${item.url}" target="_blank">View on ${item.provider === 'github' ? 'GitHub' : 'GitLab'} &rarr;</a>`;
+    html += `<a class="detail-link" href="${item.url}" target="_blank">${t(item.provider === 'github' ? 'detail.viewOnGitHub' : 'detail.viewOnGitLab')}</a>`;
   }
 
   detailBody.innerHTML = html;
@@ -558,7 +563,7 @@ btnGitHub.addEventListener('click', async () => {
     await refreshAuthState();
     await Promise.all([loadContributions(), loadActivity()]);
   } catch (err) {
-    showStatus(`GitHub: ${err.message}`, 'error');
+    showStatus(`GitHub: ${t('status.loadFailed', { error: err.message })}`, 'error');
   } finally {
     btnGitHub.disabled = false;
   }
@@ -583,7 +588,7 @@ btnGitLab.addEventListener('click', async () => {
     await refreshAuthState();
     await Promise.all([loadContributions(), loadActivity()]);
   } catch (err) {
-    showStatus(`GitLab: ${err.message}`, 'error');
+    showStatus(`GitLab: ${t('status.loadFailed', { error: err.message })}`, 'error');
   } finally {
     btnGitLab.disabled = false;
   }
@@ -698,20 +703,9 @@ function getTypeIcon(type) {
  * @returns {string} Nombre legible del tipo de actividad.
  */
 function getTypeLabel(type) {
-  const labels = {
-    commit: 'Commit',
-    pull_request: 'Pull Request',
-    merge_request: 'Merge Request',
-    issue: 'Issue',
-    comment: 'Comment',
-    review: 'Review',
-    branch: 'Branch',
-    tag: 'Tag',
-    fork: 'Fork',
-    star: 'Star',
-    other: 'Activity',
-  };
-  return labels[type] || type;
+  const key = `type.${type}`;
+  const translated = t(key);
+  return translated !== key ? translated : type;
 }
 
 /**
@@ -726,22 +720,18 @@ function timeAgo(dateStr) {
   const then = new Date(dateStr).getTime();
   const diff = now - then;
 
-  // Calcular la diferencia en minutos
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('time.justNow');
+  if (mins < 60) return t('time.minsAgo', { mins });
 
-  // Convertir a horas
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t('time.hoursAgo', { hours });
 
-  // Convertir a días
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return t('time.daysAgo', { days });
 
-  // Convertir a meses (aproximación de 30 días por mes)
   const months = Math.floor(days / 30);
-  return `${months}mo ago`;
+  return t('time.monthsAgo', { months });
 }
 
 /**
@@ -751,9 +741,34 @@ function timeAgo(dateStr) {
  * @param {string} dateStr - Fecha en formato ISO 8601.
  * @returns {string} Fecha formateada (ej: 'Mar 15, 2025, 10:30 AM').
  */
+const LOCALE_MAP = { en: 'en-US', es: 'es-ES', zh: 'zh-CN' };
+
 function formatDate(dateStr) {
-  return new Date(dateStr).toLocaleDateString('en-US', {
+  return new Date(dateStr).toLocaleDateString(LOCALE_MAP[getLocale()] || 'en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
+  });
+}
+
+// ── Selector de idioma ──
+
+/**
+ * Inicializa el selector de idioma en el header.
+ * Establece el valor actual y maneja el cambio de idioma en runtime.
+ */
+function initLanguageSelector() {
+  const langSelect = document.getElementById('lang-select');
+  langSelect.value = getLocale();
+
+  langSelect.addEventListener('change', async () => {
+    await setLocale(langSelect.value);
+    // Re-renderizar contenido dinámico que ya está en pantalla
+    updateButtons();
+    if (githubData || gitlabData) {
+      renderHeatmap(heatmapContainer, githubData, gitlabData);
+    }
+    if (allActivities.length > 0) {
+      renderActivityList(allActivities);
+    }
   });
 }

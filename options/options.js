@@ -19,6 +19,8 @@
  * a diferencia de chrome.storage.local que es solo local.
  */
 
+import { initI18n, t, translatePage } from '../lib/i18n.js';
+
 /** @type {HTMLInputElement} Campo de texto para la URL base de GitLab */
 const gitlabUrlInput = document.getElementById('gitlab-url');
 
@@ -33,6 +35,9 @@ const messageEl = document.getElementById('message');
  * Si no hay URL personalizada guardada, el campo queda vacío (se usará gitlab.com).
  */
 document.addEventListener('DOMContentLoaded', async () => {
+  await initI18n();
+  translatePage();
+
   const result = await chrome.storage.sync.get('gitlab_base_url');
   if (result.gitlab_base_url) {
     gitlabUrlInput.value = result.gitlab_base_url;
@@ -53,7 +58,7 @@ btnSave.addEventListener('click', async () => {
     try {
       new URL(url);
     } catch {
-      showMessage('Please enter a valid URL.', 'error');
+      showMessage(t('options.invalidUrl'), 'error');
       return;
     }
 
@@ -67,11 +72,11 @@ btnSave.addEventListener('click', async () => {
       });
       if (!granted) {
         // El usuario denegó el permiso — no se puede acceder a esa instancia
-        showMessage('Permission denied. Cannot access this GitLab instance.', 'error');
+        showMessage(t('options.permissionDenied'), 'error');
         return;
       }
     } catch (err) {
-      showMessage(`Permission error: ${err.message}`, 'error');
+      showMessage(t('options.permissionError', { error: err.message }), 'error');
       return;
     }
 
@@ -83,7 +88,7 @@ btnSave.addEventListener('click', async () => {
     await chrome.storage.sync.remove('gitlab_base_url');
   }
 
-  showMessage('Settings saved.', 'success');
+  showMessage(t('options.saved'), 'success');
 });
 
 /**

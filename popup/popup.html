@@ -8,38 +8,43 @@
 </head>
 <body>
   <header>
-    <h1>Contributions</h1>
+    <h1 data-i18n="popup.title">Contributions</h1>
     <div class="header-actions">
-      <button id="btn-github" class="provider-btn" title="Connect GitHub">
+      <select id="lang-select" class="lang-select">
+        <option value="en">EN</option>
+        <option value="es">ES</option>
+        <option value="zh">ZH</option>
+      </select>
+      <button id="btn-github" class="provider-btn" data-i18n-title="popup.connectGitHub" title="Connect GitHub">
         <span class="provider-dot gh-dot"></span>
         <span class="provider-label">GitHub</span>
       </button>
-      <button id="btn-gitlab" class="provider-btn" title="Connect GitLab">
+      <button id="btn-gitlab" class="provider-btn" data-i18n-title="popup.connectGitLab" title="Connect GitLab">
         <span class="provider-dot gl-dot"></span>
         <span class="provider-label">GitLab</span>
       </button>
-      <button id="btn-refresh" class="icon-btn" title="Refresh" disabled>&#x21bb;</button>
-      <button id="btn-options" class="icon-btn" title="Options">&#x2699;</button>
+      <button id="btn-refresh" class="icon-btn" data-i18n-title="popup.refresh" title="Refresh" disabled>&#x21bb;</button>
+      <button id="btn-options" class="icon-btn" data-i18n-title="popup.options" title="Options">&#x2699;</button>
     </div>
   </header>
 
   <div id="status-bar" class="status-bar hidden"></div>
 
   <div id="heatmap-container" class="heatmap-container">
-    <p class="placeholder">Connect a provider to see your contributions.</p>
+    <p class="placeholder" data-i18n="popup.placeholder">Connect a provider to see your contributions.</p>
   </div>
 
   <div id="activity-section" class="activity-section">
     <div id="activity-feed" class="activity-feed">
       <div class="section-header">
-        <h2>Recent Activity</h2>
+        <h2 data-i18n="popup.recentActivity">Recent Activity</h2>
       </div>
       <div id="activity-list" class="activity-list"></div>
     </div>
 
     <div id="activity-detail" class="activity-detail hidden">
       <div class="detail-header">
-        <button id="btn-back" class="back-btn">&larr; Back</button>
+        <button id="btn-back" class="back-btn">&larr; <span data-i18n="popup.back">Back</span></button>
         <span id="detail-type" class="detail-type-badge"></span>
       </div>
       <div id="detail-body" class="detail-body"></div>
