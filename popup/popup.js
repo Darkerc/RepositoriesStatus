@@ -342,11 +342,13 @@ function renderActivityList(items) {
     <div class="activity-item type-${item.type}" data-index="${idx}">
       <div class="activity-type-icon ${item.type}">${getTypeIcon(item.type)}</div>
       <div class="activity-content">
-        <div class="activity-repo">${escapeHtml(item.repo)}</div>
+        <div class="activity-repo">${escapeHtml(item.repo)}${item.isPrivate ? ' <span class="private-badge">&#128274;</span>' : ''}</div>
         <div class="activity-title">${escapeHtml(item.title)}</div>
         <div class="activity-meta">
           <span class="activity-type-label">${getTypeLabel(item.type)}</span>
+          ${item.branch ? `<span class="activity-branch">${escapeHtml(item.branch)}</span>` : ''}
           <span class="activity-date">${timeAgo(item.date)}</span>
+          <span class="activity-short-date">${shortDate(item.date)}</span>
         </div>
       </div>
       <span class="activity-provider-badge ${item.provider}">${item.provider === 'github' ? 'GH' : 'GL'}</span>
@@ -408,6 +410,13 @@ async function showCommitDetail(item) {
     <div class="detail-date">${formatDate(item.date)}</div>
   `;
 
+  if (item.branch) {
+    html += `<div class="detail-branch">${t('detail.branch')}: ${escapeHtml(item.branch)}</div>`;
+  }
+  if (item.author) {
+    html += `<div class="detail-author">${t('detail.author')}: ${escapeHtml(item.author)}</div>`;
+  }
+
   // Si no hay SHAs individuales (commits agregados de GraphQL), mostrar resumen con enlace
   if (!firstCommit?.sha) {
     const repoUrl = item.provider === 'github'
@@ -453,6 +462,13 @@ async function showCommitDetail(item) {
       <div class="detail-date">${formatDate(detail.date || item.date)}</div>
       <div class="detail-sha">${detail.sha?.substring(0, 7) || ''}</div>
     `;
+
+    if (item.branch) {
+      fullHtml += `<div class="detail-branch">${t('detail.branch')}: ${escapeHtml(item.branch)}</div>`;
+    }
+    if (detail.author || item.author) {
+      fullHtml += `<div class="detail-author">${t('detail.author')}: ${escapeHtml(detail.author || item.author)}</div>`;
+    }
 
     // Mostrar el mensaje completo del commit si es multilínea
     if (detail.message && detail.message.includes('\n')) {
@@ -747,6 +763,13 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString(LOCALE_MAP[getLocale()] || 'en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function shortDate(dateStr) {
+  const locale = LOCALE_MAP[getLocale()] || 'en-US';
+  return new Date(dateStr).toLocaleDateString(locale, {
+    weekday: 'short', day: 'numeric', month: 'short',
   });
 }
 

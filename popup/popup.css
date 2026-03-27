@@ -360,9 +360,29 @@ h1 {
   color: #656d76;
 }
 
+.activity-branch {
+  font-size: 10px;
+  color: #656d76;
+  background: #ddf4ff;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
+
 .activity-date {
   font-size: 11px;
   color: #8b949e;
+}
+
+.activity-short-date {
+  font-size: 10px;
+  color: #656d76;
+  margin-left: auto;
+}
+
+.private-badge {
+  font-size: 10px;
+  opacity: 0.7;
 }
 
 .activity-provider-badge {
@@ -497,6 +517,19 @@ h1 {
   color: #656d76;
   font-family: 'SFMono-Regular', Consolas, monospace;
   margin-bottom: 12px;
+}
+
+.detail-branch {
+  font-size: 11px;
+  color: #0969da;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  margin-bottom: 4px;
+}
+
+.detail-author {
+  font-size: 11px;
+  color: #656d76;
+  margin-bottom: 8px;
 }
 
 /* Files list */

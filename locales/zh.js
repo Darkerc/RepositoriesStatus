@@ -54,6 +54,8 @@ export default {
   "detail.viewOnGitLab": "\u5728 GitLab \u4e0a\u67e5\u770b \u2192",
   "detail.filesChanged": "\u4fee\u6539\u7684\u6587\u4ef6 ({count})",
   "detail.action": "\u64cd\u4f5c\uff1a{action}",
+  "detail.branch": "\u5206\u652f",
+  "detail.author": "\u4f5c\u8005",
 
   // ── Heatmap ──
   "heatmap.mon": "\u5468\u4e00",

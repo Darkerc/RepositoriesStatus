@@ -54,6 +54,8 @@ export default {
   "detail.viewOnGitLab": "Ver en GitLab \u2192",
   "detail.filesChanged": "Archivos modificados ({count})",
   "detail.action": "Acci\u00f3n: {action}",
+  "detail.branch": "Rama",
+  "detail.author": "Autor",
 
   // ── Heatmap ──
   "heatmap.mon": "Lun",
