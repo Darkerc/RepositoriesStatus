@@ -9,6 +9,12 @@ export default {
   "popup.recentActivity": "Recent Activity",
   "popup.back": "Back",
 
+  // ── Activity filter ──
+  "activityFilter.all": "All",
+  "activityFilter.allTitle": "Show all activity",
+  "activityFilter.githubTitle": "Show only GitHub",
+  "activityFilter.gitlabTitle": "Show only GitLab",
+
   // ── Status messages ──
   "status.loading": "Loading contributions...",
   "status.cachedData": "Showing cached data. Some data may be outdated.",
@@ -18,6 +24,7 @@ export default {
   "status.loadFailed": "Failed to load contributions: {error}",
   "status.activityFailed": "Could not load activity.",
   "status.noActivity": "No recent activity.",
+  "status.noActivityForFilter": "No activity for this filter.",
   "status.loadingFiles": "Loading file details...",
   "status.filesFailed": "Could not load file details.",
 

@@ -237,6 +237,10 @@ h1 {
 }
 
 .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
@@ -244,6 +248,56 @@ h1 {
   font-size: 13px;
   font-weight: 600;
   color: #1f2328;
+}
+
+/* Activity filter buttons */
+.activity-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.activity-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border: 1px solid #d0d7de;
+  border-radius: 20px;
+  background: #f6f8fa;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  color: #656d76;
+  transition: all 0.15s;
+}
+
+.activity-filter-btn:hover:not(:disabled) {
+  background: #eaeef2;
+}
+
+.activity-filter-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.activity-filter-btn.active {
+  border-color: transparent;
+  color: #fff;
+  background: #1f2328;
+}
+
+.activity-filter-btn.active[data-filter="github"] {
+  background: #238636;
+}
+
+.activity-filter-btn.active[data-filter="gitlab"] {
+  background: #7c3aed;
+}
+
+.activity-filter-btn.active .gh-dot,
+.activity-filter-btn.active .gl-dot {
+  background: rgba(255, 255, 255, 0.85);
 }
 
 .activity-list {

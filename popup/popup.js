@@ -71,6 +71,15 @@ const detailType = document.getElementById('detail-type');
 /** @type {HTMLElement} Cuerpo del panel de detalle donde se muestra la información */
 const detailBody = document.getElementById('detail-body');
 
+/** @type {HTMLButtonElement} Botón de filtro: mostrar toda la actividad */
+const filterAll = document.getElementById('filter-all');
+
+/** @type {HTMLButtonElement} Botón de filtro: mostrar solo actividad de GitHub */
+const filterGitHub = document.getElementById('filter-github');
+
+/** @type {HTMLButtonElement} Botón de filtro: mostrar solo actividad de GitLab */
+const filterGitLab = document.getElementById('filter-gitlab');
+
 // ── Estado de la aplicación ──
 
 /** @type {{github: boolean, gitlab: boolean}} Estado de autenticación de cada proveedor */
@@ -84,6 +93,9 @@ let gitlabData = null;
 
 /** @type {Array<Object>} Lista combinada y ordenada de actividades recientes */
 let allActivities = [];
+
+/** @type {'all'|'github'|'gitlab'} Filtro actual aplicado al feed de actividad */
+let activityFilter = 'all';
 
 // ── Inicialización ──
 
@@ -101,6 +113,7 @@ async function init() {
   await initI18n();
   translatePage();
   initLanguageSelector();
+  await initActivityFilter();
 
   await refreshAuthState();
   await loadCachedDataFromStorage();
@@ -166,6 +179,16 @@ function updateButtons() {
 
   // Mostrar/ocultar la sección de actividad según haya proveedores conectados
   activitySection.style.display = (authState.github || authState.gitlab) ? '' : 'none';
+
+  // Deshabilitar los filtros de proveedores no conectados
+  filterGitHub.disabled = !authState.github;
+  filterGitLab.disabled = !authState.gitlab;
+
+  // Si el filtro activo pertenece a un proveedor desconectado, resetear a "Todos"
+  if ((activityFilter === 'github' && !authState.github) ||
+      (activityFilter === 'gitlab' && !authState.gitlab)) {
+    setActivityFilter('all');
+  }
 }
 
 // ── Datos en caché ──
@@ -202,7 +225,7 @@ async function loadCachedDataFromStorage() {
     const glActivity = result.gitlab_activity?.data || [];
     allActivities = mergeAndSortActivities(ghActivity, glActivity);
     if (allActivities.length > 0) {
-      renderActivityList(allActivities);
+      renderFilteredActivities();
     }
   } catch { /* Ignorar errores de lectura de caché — se cargarán datos frescos */ }
 }
@@ -293,7 +316,7 @@ async function loadActivity(forceRefresh = false) {
     const ghActivity = result.github?.data || [];
     const glActivity = result.gitlab?.data || [];
     allActivities = mergeAndSortActivities(ghActivity, glActivity);
-    renderActivityList(allActivities);
+    renderFilteredActivities();
 
     // Recopilar y mostrar errores específicos de cada proveedor (si los hay)
     const errors = [];
@@ -333,7 +356,11 @@ function mergeAndSortActivities(ghItems, glItems) {
  */
 function renderActivityList(items) {
   if (items.length === 0) {
-    activityList.innerHTML = `<div class="activity-empty">${t('status.noActivity')}</div>`;
+    // Si hay actividades en total pero ninguna coincide con el filtro, mostrar mensaje contextual
+    const emptyKey = allActivities.length > 0 && activityFilter !== 'all'
+      ? 'status.noActivityForFilter'
+      : 'status.noActivity';
+    activityList.innerHTML = `<div class="activity-empty">${t(emptyKey)}</div>`;
     return;
   }
 
@@ -355,13 +382,59 @@ function renderActivityList(items) {
     </div>
   `).join('');
 
-  // Agregar handlers de clic a cada elemento para mostrar el detalle
+  // Agregar handlers de clic a cada elemento usando la lista filtrada como fuente,
+  // de modo que el índice del DOM corresponda al mismo item que se renderizó.
   activityList.querySelectorAll('.activity-item').forEach(el => {
     el.addEventListener('click', () => {
       const idx = parseInt(el.dataset.index);
-      showDetail(allActivities[idx]);
+      showDetail(items[idx]);
     });
   });
+}
+
+/**
+ * Aplica el filtro actual sobre allActivities y renderiza la lista resultante.
+ * Es el punto de entrada preferido cuando cambian los datos o el filtro.
+ */
+function renderFilteredActivities() {
+  const items = activityFilter === 'all'
+    ? allActivities
+    : allActivities.filter(it => it.provider === activityFilter);
+  renderActivityList(items);
+}
+
+/**
+ * Cambia el filtro activo, actualiza la UI de los botones, persiste la preferencia
+ * y re-renderiza la lista de actividad.
+ *
+ * @param {'all'|'github'|'gitlab'} filter - Nuevo filtro a aplicar.
+ */
+function setActivityFilter(filter) {
+  activityFilter = filter;
+  [filterAll, filterGitHub, filterGitLab].forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+  chrome.storage.local.set({ activity_filter: filter });
+  renderFilteredActivities();
+}
+
+/**
+ * Carga el filtro persistido de chrome.storage y engancha los listeners de los 3 botones.
+ */
+async function initActivityFilter() {
+  try {
+    const stored = await chrome.storage.local.get('activity_filter');
+    if (stored.activity_filter === 'github' || stored.activity_filter === 'gitlab') {
+      activityFilter = stored.activity_filter;
+      filterAll.classList.remove('active');
+      const activeBtn = stored.activity_filter === 'github' ? filterGitHub : filterGitLab;
+      activeBtn.classList.add('active');
+    }
+  } catch { /* Si falla la lectura, mantener 'all' por defecto */ }
+
+  filterAll.addEventListener('click', () => setActivityFilter('all'));
+  filterGitHub.addEventListener('click', () => setActivityFilter('github'));
+  filterGitLab.addEventListener('click', () => setActivityFilter('gitlab'));
 }
 
 // ── Panel de detalle ──
@@ -791,7 +864,7 @@ function initLanguageSelector() {
       renderHeatmap(heatmapContainer, githubData, gitlabData);
     }
     if (allActivities.length > 0) {
-      renderActivityList(allActivities);
+      renderFilteredActivities();
     }
   });
 }

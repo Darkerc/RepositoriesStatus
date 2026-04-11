@@ -38,6 +38,15 @@
     <div id="activity-feed" class="activity-feed">
       <div class="section-header">
         <h2 data-i18n="popup.recentActivity">Recent Activity</h2>
+        <div class="activity-filter-group">
+          <button type="button" id="filter-all" class="activity-filter-btn active" data-filter="all" data-i18n="activityFilter.all" data-i18n-title="activityFilter.allTitle" title="Show all activity">All</button>
+          <button type="button" id="filter-github" class="activity-filter-btn" data-filter="github" data-i18n-title="activityFilter.githubTitle" title="Show only GitHub">
+            <span class="provider-dot gh-dot"></span>GitHub
+          </button>
+          <button type="button" id="filter-gitlab" class="activity-filter-btn" data-filter="gitlab" data-i18n-title="activityFilter.gitlabTitle" title="Show only GitLab">
+            <span class="provider-dot gl-dot"></span>GitLab
+          </button>
+        </div>
       </div>
       <div id="activity-list" class="activity-list"></div>
     </div>

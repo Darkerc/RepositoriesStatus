@@ -9,6 +9,12 @@ export default {
   "popup.recentActivity": "\u6700\u8fd1\u6d3b\u52a8",
   "popup.back": "\u8fd4\u56de",
 
+  // ── Activity filter ──
+  "activityFilter.all": "\u5168\u90e8",
+  "activityFilter.allTitle": "\u663e\u793a\u5168\u90e8\u6d3b\u52a8",
+  "activityFilter.githubTitle": "\u4ec5\u663e\u793a GitHub",
+  "activityFilter.gitlabTitle": "\u4ec5\u663e\u793a GitLab",
+
   // ── Status messages ──
   "status.loading": "\u6b63\u5728\u52a0\u8f7d\u8d21\u732e\u6570\u636e...",
   "status.cachedData": "\u663e\u793a\u7f13\u5b58\u6570\u636e\u3002\u90e8\u5206\u6570\u636e\u53ef\u80fd\u5df2\u8fc7\u65f6\u3002",
@@ -18,6 +24,7 @@ export default {
   "status.loadFailed": "\u52a0\u8f7d\u8d21\u732e\u5931\u8d25\uff1a{error}",
   "status.activityFailed": "\u65e0\u6cd5\u52a0\u8f7d\u6d3b\u52a8\u3002",
   "status.noActivity": "\u6ca1\u6709\u6700\u8fd1\u7684\u6d3b\u52a8\u3002",
+  "status.noActivityForFilter": "\u6b64\u7b5b\u9009\u6761\u4ef6\u4e0b\u6ca1\u6709\u6d3b\u52a8\u3002",
   "status.loadingFiles": "\u6b63\u5728\u52a0\u8f7d\u6587\u4ef6\u8be6\u60c5...",
   "status.filesFailed": "\u65e0\u6cd5\u52a0\u8f7d\u6587\u4ef6\u8be6\u60c5\u3002",
 
