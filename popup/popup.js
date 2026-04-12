@@ -80,6 +80,24 @@ const filterGitHub = document.getElementById('filter-github');
 /** @type {HTMLButtonElement} Botón de filtro: mostrar solo actividad de GitLab */
 const filterGitLab = document.getElementById('filter-gitlab');
 
+/** @type {HTMLButtonElement} Tab principal "Mi actividad" (actividad personal del usuario) */
+const tabUser = document.getElementById('tab-user');
+
+/** @type {HTMLButtonElement} Tab principal "Actividad de grupos" (orgs/grupos del usuario) */
+const tabGroups = document.getElementById('tab-groups');
+
+/** @type {HTMLElement} Contenedor del strip de sub-tabs de grupos (uno por cada org/group) */
+const groupTabsContainer = document.getElementById('group-tabs-container');
+
+/** @type {HTMLElement} Strip donde se renderizan los botones de cada grupo */
+const groupTabsList = document.getElementById('group-tabs');
+
+/** @type {HTMLElement} Mensaje que se muestra cuando el usuario no tiene grupos */
+const groupTabsEmpty = document.getElementById('group-tabs-empty');
+
+/** @type {HTMLElement} Contenedor del filtro por proveedor (se oculta en modo grupo) */
+const activityFilterGroup = document.querySelector('.activity-filter-group');
+
 // ── Estado de la aplicación ──
 
 /** @type {{github: boolean, gitlab: boolean}} Estado de autenticación de cada proveedor */
@@ -91,11 +109,34 @@ let githubData = null;
 /** @type {Object.<string, number>|null} Datos de contribuciones de GitLab */
 let gitlabData = null;
 
-/** @type {Array<Object>} Lista combinada y ordenada de actividades recientes */
-let allActivities = [];
+/** @type {Array<Object>} Lista combinada y ordenada de actividades recientes del usuario */
+let userActivities = [];
 
-/** @type {'all'|'github'|'gitlab'} Filtro actual aplicado al feed de actividad */
+/** @type {Array<Object>} Lista de actividades que se está mostrando actualmente
+ *  (apunta a `userActivities` en tab "Mi actividad" o a la actividad del grupo
+ *  seleccionado en tab "Actividad de grupos"). */
+let displayedActivities = [];
+
+/** @type {'all'|'github'|'gitlab'} Filtro actual aplicado al feed de actividad (solo en tab de usuario) */
 let activityFilter = 'all';
+
+/** @type {'user'|'groups'} Tab principal activo */
+let mainTab = 'user';
+
+/** @type {{github: Array, gitlab: Array}} Listas de orgs/grupos del usuario (se llena al entrar al tab de grupos) */
+let userGroups = { github: [], gitlab: [] };
+
+/** @type {boolean} Indica si ya se intentó cargar la lista de grupos (evita fetch repetidos) */
+let groupsLoaded = false;
+
+/** @type {boolean} Guard de concurrencia para evitar cargas paralelas de la lista de grupos */
+let groupsLoading = false;
+
+/** @type {{provider: string, ref: string|number, name: string}|null} Grupo actualmente seleccionado en el strip */
+let selectedGroup = null;
+
+/** @type {Object.<string, Array<Object>>} Caché en memoria de actividad por grupo ("{provider}:{ref}" → items) */
+let groupActivityCache = {};
 
 // ── Inicialización ──
 
@@ -114,9 +155,15 @@ async function init() {
   translatePage();
   initLanguageSelector();
   await initActivityFilter();
+  await initMainTabs();
 
   await refreshAuthState();
   await loadCachedDataFromStorage();
+
+  // Si el último tab era "groups", entrar en ese modo tras cargar el caché.
+  if (mainTab === 'groups' && (authState.github || authState.gitlab)) {
+    await setMainTab('groups');
+  }
 
   // Cargar datos frescos de contribuciones y actividad en paralelo
   await Promise.all([
@@ -189,6 +236,27 @@ function updateButtons() {
       (activityFilter === 'gitlab' && !authState.gitlab)) {
     setActivityFilter('all');
   }
+
+  // Si ambos proveedores están desconectados, resetear el estado de grupos y
+  // forzar la vuelta al tab de usuario (evita quedar bloqueado en un strip vacío).
+  if (!authState.github && !authState.gitlab) {
+    userGroups = { github: [], gitlab: [] };
+    groupsLoaded = false;
+    selectedGroup = null;
+    groupActivityCache = {};
+    if (mainTab === 'groups') {
+      setMainTab('user');
+    }
+  } else if (mainTab === 'groups' && selectedGroup) {
+    // Si el proveedor del grupo seleccionado se desconectó, limpiar la selección.
+    if ((selectedGroup.provider === 'github' && !authState.github) ||
+        (selectedGroup.provider === 'gitlab' && !authState.gitlab)) {
+      selectedGroup = null;
+      groupsLoaded = false;
+      userGroups = { github: [], gitlab: [] };
+      enterGroupTab();
+    }
+  }
 }
 
 // ── Datos en caché ──
@@ -220,12 +288,17 @@ async function loadCachedDataFromStorage() {
       renderHeatmap(heatmapContainer, githubData, gitlabData);
     }
 
-    // Cargar y renderizar la actividad cacheada
+    // Cargar y renderizar la actividad cacheada del usuario
     const ghActivity = result.github_activity?.data || [];
     const glActivity = result.gitlab_activity?.data || [];
-    allActivities = mergeAndSortActivities(ghActivity, glActivity);
-    if (allActivities.length > 0) {
-      renderFilteredActivities();
+    userActivities = mergeAndSortActivities(ghActivity, glActivity);
+    // Por defecto al abrir el popup se muestra la actividad del usuario.
+    // Si el último tab era "groups", el flujo de initMainTabs lo cambiará después.
+    if (mainTab === 'user') {
+      displayedActivities = userActivities;
+      if (userActivities.length > 0) {
+        renderFilteredActivities();
+      }
     }
   } catch { /* Ignorar errores de lectura de caché — se cargarán datos frescos */ }
 }
@@ -315,8 +388,13 @@ async function loadActivity(forceRefresh = false) {
     // Combinar la actividad de ambos proveedores y ordenar por fecha
     const ghActivity = result.github?.data || [];
     const glActivity = result.gitlab?.data || [];
-    allActivities = mergeAndSortActivities(ghActivity, glActivity);
-    renderFilteredActivities();
+    userActivities = mergeAndSortActivities(ghActivity, glActivity);
+    // Solo re-renderizar si estamos viendo la actividad del usuario.
+    // Si estamos en el tab de grupos, no queremos pisar la vista del grupo actual.
+    if (mainTab === 'user') {
+      displayedActivities = userActivities;
+      renderFilteredActivities();
+    }
 
     // Recopilar y mostrar errores específicos de cada proveedor (si los hay)
     const errors = [];
@@ -326,8 +404,8 @@ async function loadActivity(forceRefresh = false) {
       showStatus(errors.join(' | '), 'warning');
     }
   } catch {
-    // Si no hay actividades previas, mostrar mensaje de error en la lista
-    if (allActivities.length === 0) {
+    // Si no hay actividades previas y estamos en el tab de usuario, mostrar mensaje de error
+    if (mainTab === 'user' && userActivities.length === 0) {
       activityList.innerHTML = `<div class="activity-empty">${t('status.activityFailed')}</div>`;
     }
   }
@@ -356,20 +434,33 @@ function mergeAndSortActivities(ghItems, glItems) {
  */
 function renderActivityList(items) {
   if (items.length === 0) {
+    // Si estamos en el tab de grupos, mostrar mensaje específico de grupo vacío
+    if (mainTab === 'groups') {
+      const emptyKey = selectedGroup ? 'status.noActivity' : 'groupTab.selectGroup';
+      activityList.innerHTML = `<div class="activity-empty">${t(emptyKey)}</div>`;
+      return;
+    }
     // Si hay actividades en total pero ninguna coincide con el filtro, mostrar mensaje contextual
-    const emptyKey = allActivities.length > 0 && activityFilter !== 'all'
+    const emptyKey = displayedActivities.length > 0 && activityFilter !== 'all'
       ? 'status.noActivityForFilter'
       : 'status.noActivity';
     activityList.innerHTML = `<div class="activity-empty">${t(emptyKey)}</div>`;
     return;
   }
 
+  // En el tab de grupos mostramos el autor del evento junto al nombre del repo,
+  // para que sea fácil identificar quién hizo cada cosa dentro del grupo.
+  const showActor = mainTab === 'groups';
+
   // Generar el HTML de todos los elementos de actividad
   activityList.innerHTML = items.map((item, idx) => `
     <div class="activity-item type-${item.type}" data-index="${idx}">
       <div class="activity-type-icon ${item.type}">${getTypeIcon(item.type)}</div>
       <div class="activity-content">
-        <div class="activity-repo">${escapeHtml(item.repo)}${item.isPrivate ? ' <span class="private-badge">&#128274;</span>' : ''}</div>
+        <div class="activity-repo-row">
+          <span class="activity-repo">${escapeHtml(item.repo)}${item.isPrivate ? ' <span class="private-badge">&#128274;</span>' : ''}</span>
+          ${showActor && item.actor ? `<span class="activity-actor" title="${escapeHtml(item.actor)}">@${escapeHtml(item.actor)}</span>` : ''}
+        </div>
         <div class="activity-title">${escapeHtml(item.title)}</div>
         <div class="activity-meta">
           <span class="activity-type-label">${getTypeLabel(item.type)}</span>
@@ -393,13 +484,15 @@ function renderActivityList(items) {
 }
 
 /**
- * Aplica el filtro actual sobre allActivities y renderiza la lista resultante.
+ * Aplica el filtro actual sobre displayedActivities y renderiza la lista resultante.
  * Es el punto de entrada preferido cuando cambian los datos o el filtro.
+ * El filtro por proveedor (All/GH/GL) solo se aplica en el tab de usuario; en el
+ * tab de grupos el filtro es irrelevante porque cada grupo pertenece a un solo proveedor.
  */
 function renderFilteredActivities() {
-  const items = activityFilter === 'all'
-    ? allActivities
-    : allActivities.filter(it => it.provider === activityFilter);
+  const items = (mainTab === 'user' && activityFilter !== 'all')
+    ? displayedActivities.filter(it => it.provider === activityFilter)
+    : displayedActivities;
   renderActivityList(items);
 }
 
@@ -631,6 +724,311 @@ function hideDetail() {
   activityFeed.classList.remove('hidden');
 }
 
+// ── Tabs principales (User / Groups) ──
+
+/**
+ * Inicializa los tabs principales: lee el último tab activo del storage, engancha
+ * los listeners de click y deja todo listo para que init() haga el bootstrap final.
+ */
+async function initMainTabs() {
+  try {
+    const stored = await chrome.storage.local.get('main_tab_last');
+    if (stored.main_tab_last === 'groups') {
+      mainTab = 'groups';
+    }
+  } catch { /* mantener 'user' por defecto */ }
+
+  tabUser.addEventListener('click', () => setMainTab('user'));
+  tabGroups.addEventListener('click', () => setMainTab('groups'));
+}
+
+/**
+ * Cambia el tab principal activo. Se encarga de toda la gestión de UI:
+ * - Toggle de clases `.active` en los tabs.
+ * - Muestra/oculta el strip de sub-tabs de grupos.
+ * - Oculta el filtro por proveedor cuando estamos en grupos (es irrelevante porque
+ *   cada grupo pertenece a un único proveedor).
+ * - Persiste la preferencia y entra en el tab correspondiente.
+ *
+ * @param {'user'|'groups'} tab
+ */
+async function setMainTab(tab) {
+  mainTab = tab;
+  tabUser.classList.toggle('active', tab === 'user');
+  tabUser.setAttribute('aria-selected', String(tab === 'user'));
+  tabGroups.classList.toggle('active', tab === 'groups');
+  tabGroups.setAttribute('aria-selected', String(tab === 'groups'));
+
+  // El strip de grupos solo aparece en el tab de grupos.
+  groupTabsContainer.classList.toggle('hidden', tab !== 'groups');
+  // El filtro por proveedor no tiene sentido en el tab de grupos.
+  if (activityFilterGroup) {
+    activityFilterGroup.style.display = tab === 'groups' ? 'none' : '';
+  }
+
+  // Si estamos en el panel de detalle, volver al feed al cambiar de tab.
+  if (!activityDetail.classList.contains('hidden')) {
+    hideDetail();
+  }
+
+  try { chrome.storage.local.set({ main_tab_last: tab }); } catch { /* ignore */ }
+
+  if (tab === 'user') {
+    enterUserTab();
+  } else {
+    await enterGroupTab();
+  }
+}
+
+/**
+ * Prepara la vista del tab de usuario: apunta `displayedActivities` a las
+ * actividades del usuario y re-renderiza.
+ */
+function enterUserTab() {
+  displayedActivities = userActivities;
+  renderFilteredActivities();
+}
+
+/**
+ * Prepara la vista del tab de grupos: asegura que la lista de grupos esté cargada
+ * (lazy), renderiza el strip y auto-selecciona el último grupo visitado (o el primero
+ * disponible si no había selección previa).
+ */
+async function enterGroupTab() {
+  if (!groupsLoaded && !groupsLoading) {
+    await loadUserGroups();
+  } else {
+    renderGroupTabs();
+  }
+
+  // Si ya hay un grupo seleccionado y está en la lista actual, recargar su actividad.
+  if (selectedGroup && groupExistsInCurrentLists(selectedGroup)) {
+    // Marcar visualmente el botón correcto y cargar.
+    highlightActiveGroupButton();
+    loadGroupActivity(selectedGroup);
+    return;
+  }
+
+  // Auto-seleccionar el primer grupo disponible.
+  const first = firstAvailableGroup();
+  if (first) {
+    selectGroup(first);
+  } else {
+    // No hay grupos: mostrar vacío en la lista de actividad.
+    displayedActivities = [];
+    renderFilteredActivities();
+  }
+}
+
+/**
+ * Devuelve true si `group` está presente en las listas actuales de userGroups.
+ */
+function groupExistsInCurrentLists(group) {
+  const list = group.provider === 'github' ? userGroups.github : userGroups.gitlab;
+  return list.some(g => String(g.ref) === String(group.ref));
+}
+
+/**
+ * Devuelve el primer grupo disponible (GitHub prioritario, luego GitLab).
+ * @returns {{provider: string, ref: string|number, name: string}|null}
+ */
+function firstAvailableGroup() {
+  if (userGroups.github.length > 0) {
+    const g = userGroups.github[0];
+    return { provider: 'github', ref: g.login, name: g.name || g.login };
+  }
+  if (userGroups.gitlab.length > 0) {
+    const g = userGroups.gitlab[0];
+    return { provider: 'gitlab', ref: g.id, name: g.name || g.fullPath };
+  }
+  return null;
+}
+
+/**
+ * Solicita al background la lista de orgs de GitHub y grupos de GitLab.
+ * Maneja errores por proveedor (UNAUTHORIZED actualiza el auth state) sin tumbar
+ * la UI si solo uno de los dos falla.
+ */
+async function loadUserGroups() {
+  if (groupsLoading) return;
+  groupsLoading = true;
+  activityList.innerHTML = `<div class="activity-empty">${t('groupTab.loadingGroups')}</div>`;
+  try {
+    const result = await sendMessage({ type: 'FETCH_USER_GROUPS' });
+    // El background envuelve cada provider como { data, fromCache, stale? }
+    userGroups = {
+      github: Array.isArray(result.github?.data) ? result.github.data : [],
+      gitlab: Array.isArray(result.gitlab?.data) ? result.gitlab.data : [],
+    };
+    groupsLoaded = true;
+
+    if (result.github?.stale || result.gitlab?.stale) {
+      showStatus(t('status.cachedData'), 'warning');
+    }
+
+    // Propagar UNAUTHORIZED por proveedor igual que loadContributions/loadActivity.
+    if (result.githubError === 'UNAUTHORIZED') {
+      authState.github = false;
+      updateButtons();
+      showStatus(t('status.githubExpired'), 'warning');
+    }
+    if (result.gitlabError === 'UNAUTHORIZED') {
+      authState.gitlab = false;
+      updateButtons();
+      showStatus(t('status.gitlabExpired'), 'warning');
+    }
+
+    renderGroupTabs();
+  } catch (err) {
+    activityList.innerHTML = `<div class="activity-empty">${t('groupTab.loadError')}</div>`;
+    showStatus(err.message || t('groupTab.loadError'), 'error');
+  } finally {
+    groupsLoading = false;
+  }
+}
+
+/**
+ * Renderiza el strip de botones de grupo. GitHub orgs primero (orden alfabético),
+ * luego GitLab groups. Cada botón incluye un dot del color del proveedor. Si no
+ * hay grupos en ningún proveedor, muestra el empty state.
+ */
+function renderGroupTabs() {
+  const ghSorted = [...userGroups.github].sort((a, b) =>
+    (a.name || a.login).localeCompare(b.name || b.login));
+  const glSorted = [...userGroups.gitlab].sort((a, b) =>
+    (a.name || a.fullPath).localeCompare(b.name || b.fullPath));
+
+  if (ghSorted.length === 0 && glSorted.length === 0) {
+    groupTabsList.innerHTML = '';
+    groupTabsEmpty.classList.remove('hidden');
+    return;
+  }
+  groupTabsEmpty.classList.add('hidden');
+
+  const parts = [];
+  for (const g of ghSorted) {
+    const name = g.name || g.login;
+    parts.push(`
+      <button type="button" class="group-tab-btn" data-provider="github" data-ref="${escapeHtml(g.login)}" title="${escapeHtml(name)}">
+        <span class="provider-dot gh-dot"></span>
+        <span class="group-tab-label">${escapeHtml(name)}</span>
+      </button>`);
+  }
+  for (const g of glSorted) {
+    const name = g.name || g.fullPath;
+    parts.push(`
+      <button type="button" class="group-tab-btn" data-provider="gitlab" data-ref="${escapeHtml(String(g.id))}" title="${escapeHtml(name)}">
+        <span class="provider-dot gl-dot"></span>
+        <span class="group-tab-label">${escapeHtml(name)}</span>
+      </button>`);
+  }
+  groupTabsList.innerHTML = parts.join('');
+
+  groupTabsList.querySelectorAll('.group-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const provider = btn.dataset.provider;
+      const ref = btn.dataset.ref;
+      const name = btn.querySelector('.group-tab-label').textContent;
+      selectGroup({ provider, ref, name });
+    });
+  });
+
+  highlightActiveGroupButton();
+}
+
+/**
+ * Marca como activo el botón del strip correspondiente al `selectedGroup` actual.
+ */
+function highlightActiveGroupButton() {
+  groupTabsList.querySelectorAll('.group-tab-btn').forEach(btn => {
+    const match = selectedGroup
+      && btn.dataset.provider === selectedGroup.provider
+      && btn.dataset.ref === String(selectedGroup.ref);
+    btn.classList.toggle('active', !!match);
+  });
+}
+
+/**
+ * Selecciona un grupo del strip, persiste la elección y carga su actividad.
+ * @param {{provider: string, ref: string|number, name: string}} group
+ */
+function selectGroup(group) {
+  selectedGroup = group;
+  highlightActiveGroupButton();
+  try {
+    chrome.storage.local.set({ group_selected_last: group });
+  } catch { /* ignore */ }
+  loadGroupActivity(group);
+}
+
+/**
+ * Carga la actividad de un grupo desde el background. Usa un guard de respuesta
+ * obsoleta para evitar renderizar datos de un grupo que ya no está seleccionado
+ * (por ejemplo si el usuario cambió de grupo mientras llegaba la respuesta).
+ *
+ * @param {{provider: string, ref: string|number, name: string}} group
+ * @param {boolean} [forceRefresh=false]
+ */
+async function loadGroupActivity(group, forceRefresh = false) {
+  const cacheKey = `${group.provider}:${group.ref}`;
+
+  // Render instantáneo desde el caché en memoria si existe y no estamos forzando.
+  if (!forceRefresh && groupActivityCache[cacheKey]) {
+    displayedActivities = groupActivityCache[cacheKey];
+    renderFilteredActivities();
+    return;
+  }
+
+  // Mostrar estado de carga solo si no tenemos nada que mostrar aún.
+  activityList.innerHTML = `<div class="activity-empty">${t('groupTab.loadingActivity')}</div>`;
+  btnRefresh.classList.add('spinning');
+
+  const requestedKey = cacheKey;
+  try {
+    const result = await sendMessage({
+      type: 'FETCH_GROUP_ACTIVITY',
+      provider: group.provider,
+      ref: group.ref,
+      forceRefresh,
+    });
+
+    // Guard de respuesta obsoleta: si el usuario cambió de grupo mientras llegaba
+    // la respuesta, descartar el resultado.
+    if (!selectedGroup || `${selectedGroup.provider}:${selectedGroup.ref}` !== requestedKey) {
+      return;
+    }
+
+    const items = Array.isArray(result.data) ? result.data : [];
+    groupActivityCache[cacheKey] = items;
+    displayedActivities = items;
+    renderFilteredActivities();
+
+    if (result.stale) {
+      showStatus(t('status.cachedData'), 'warning');
+    } else {
+      hideStatus();
+    }
+  } catch (err) {
+    // UNAUTHORIZED: refrescar auth state para reflejar la desconexión.
+    if (err.message === 'UNAUTHORIZED') {
+      await refreshAuthState();
+      return;
+    }
+    if (!selectedGroup || `${selectedGroup.provider}:${selectedGroup.ref}` !== requestedKey) {
+      return;
+    }
+    activityList.innerHTML = `
+      <div class="activity-empty">
+        ${t('groupTab.loadError')}
+        <button type="button" class="retry-btn">${t('groupTab.retry')}</button>
+      </div>`;
+    const retry = activityList.querySelector('.retry-btn');
+    if (retry) retry.addEventListener('click', () => loadGroupActivity(group, true));
+  } finally {
+    btnRefresh.classList.remove('spinning');
+  }
+}
+
 // ── Event Listeners (manejadores de eventos de la UI) ──
 
 /**
@@ -685,9 +1083,17 @@ btnGitLab.addEventListener('click', async () => {
 
 /**
  * Handler del botón de refresco: fuerza la recarga de todos los datos desde las APIs.
+ * En el tab de grupos, refresca la actividad del grupo seleccionado en lugar de la
+ * del usuario (el heatmap y la actividad del usuario siempre se refrescan igual porque
+ * se alimentan de la misma fuente y el usuario espera que el refresh impacte a todo).
  */
 btnRefresh.addEventListener('click', () => {
-  Promise.all([loadContributions(true), loadActivity(true)]);
+  loadContributions(true);
+  if (mainTab === 'groups' && selectedGroup) {
+    loadGroupActivity(selectedGroup, true);
+  } else {
+    loadActivity(true);
+  }
 });
 
 /**
@@ -863,7 +1269,7 @@ function initLanguageSelector() {
     if (githubData || gitlabData) {
       renderHeatmap(heatmapContainer, githubData, gitlabData);
     }
-    if (allActivities.length > 0) {
+    if (displayedActivities.length > 0) {
       renderFilteredActivities();
     }
   });

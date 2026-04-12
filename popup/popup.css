@@ -22,7 +22,7 @@ body {
   font-size: 13px;
   color: #1f2328;
   background: #ffffff;
-  padding: 14px 16px;
+  padding: 5px 10px;
 }
 
 /* ── Header ── */
@@ -232,7 +232,7 @@ h1 {
 /* ── Activity Section ── */
 .activity-section {
   border-top: 1px solid #d8dee4;
-  padding-top: 12px;
+  padding-top: 5px;
   position: relative;
 }
 
@@ -241,7 +241,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 
 .section-header h2 {
@@ -298,6 +298,110 @@ h1 {
 .activity-filter-btn.active .gh-dot,
 .activity-filter-btn.active .gl-dot {
   background: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Main tabs (User / Groups) ── */
+.main-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 7px;
+  border-bottom: 1px solid #d8dee4;
+}
+
+.main-tab {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #656d76;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color .15s, border-color .15s;
+}
+
+.main-tab:hover {
+  color: #1f2328;
+}
+
+.main-tab.active {
+  color: #0969da;
+  border-bottom-color: #0969da;
+}
+
+/* ── Group sub-tabs (one per org/group) ── */
+.group-tabs-container {
+  margin-bottom: 10px;
+}
+
+.group-tabs-container.hidden {
+  display: none;
+}
+
+.group-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 72px;
+  overflow-y: auto;
+  padding-bottom: 2px;
+}
+
+.group-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 20px;
+  background: #f6f8fa;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  color: #656d76;
+  transition: all .15s;
+  max-width: 180px;
+}
+
+.group-tab-btn:hover:not(:disabled) {
+  background: #eaeef2;
+}
+
+.group-tab-btn.active {
+  border-color: transparent;
+  color: #fff;
+}
+
+.group-tab-btn.active[data-provider="github"] {
+  background: #238636;
+}
+
+.group-tab-btn.active[data-provider="gitlab"] {
+  background: #7c3aed;
+}
+
+.group-tab-btn.active .gh-dot,
+.group-tab-btn.active .gl-dot {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.group-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+.group-tabs-empty {
+  text-align: center;
+  color: #8b949e;
+  padding: 18px 0;
+  font-size: 12px;
+}
+
+.group-tabs-empty.hidden {
+  display: none;
 }
 
 .activity-list {
@@ -378,9 +482,33 @@ h1 {
   min-width: 0;
 }
 
+.activity-repo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
 .activity-repo {
   font-size: 11px;
   color: #656d76;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.activity-actor {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 500;
+  color: #0969da;
+  background: #ddf4ff;
+  padding: 1px 6px;
+  border-radius: 10px;
+  max-width: 120px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -475,6 +603,8 @@ h1 {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  box-shadow: 0 -2px 0 #494949;
+  padding-top: 3px;
 }
 
 .back-btn {

@@ -15,6 +15,20 @@ export default {
   "activityFilter.githubTitle": "\u4ec5\u663e\u793a GitHub",
   "activityFilter.gitlabTitle": "\u4ec5\u663e\u793a GitLab",
 
+  // ── Main tabs (User / Groups) ──
+  "mainTab.user": "\u4e2a\u4eba\u6d3b\u52a8",
+  "mainTab.userTitle": "\u4f60\u7684\u6700\u8fd1\u6d3b\u52a8",
+  "mainTab.groups": "\u7ec4\u7ec7\u6d3b\u52a8",
+  "mainTab.groupsTitle": "\u4f60\u6240\u5c5e\u7ec4\u7ec7\u548c\u7fa4\u7ec4\u4e2d\u7684\u6d3b\u52a8",
+
+  // ── Group tab ──
+  "groupTab.loadingGroups": "\u6b63\u5728\u52a0\u8f7d\u4f60\u7684\u7ec4\u7ec7\u2026",
+  "groupTab.noGroups": "\u4f60\u4e0d\u5c5e\u4e8e\u4efb\u4f55\u7ec4\u7ec7\u6216\u7fa4\u7ec4\u3002",
+  "groupTab.loadError": "\u65e0\u6cd5\u52a0\u8f7d\u7ec4\u7ec7\u6d3b\u52a8\u3002",
+  "groupTab.retry": "\u91cd\u8bd5",
+  "groupTab.selectGroup": "\u9009\u62e9\u4e00\u4e2a\u7ec4\u7ec7\u67e5\u770b\u5176\u6d3b\u52a8\u3002",
+  "groupTab.loadingActivity": "\u6b63\u5728\u52a0\u8f7d\u7ec4\u7ec7\u6d3b\u52a8\u2026",
+
   // ── Status messages ──
   "status.loading": "\u6b63\u5728\u52a0\u8f7d\u8d21\u732e\u6570\u636e...",
   "status.cachedData": "\u663e\u793a\u7f13\u5b58\u6570\u636e\u3002\u90e8\u5206\u6570\u636e\u53ef\u80fd\u5df2\u8fc7\u65f6\u3002",

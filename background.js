@@ -28,9 +28,9 @@
  */
 
 import { authenticateGitHub, authenticateGitLab, getAuthState, removeToken, getToken, revokeGitHubGrant } from './lib/auth.js';
-import { fetchGitHubContributions, fetchGitHubActivity, fetchGitHubCommitDetail } from './lib/github-api.js';
-import { fetchGitLabContributions, fetchGitLabActivity, fetchGitLabCommitDetail } from './lib/gitlab-api.js';
-import { getCached, setCache, clearCache } from './lib/cache.js';
+import { fetchGitHubContributions, fetchGitHubActivity, fetchGitHubCommitDetail, fetchGitHubUserOrgs, fetchGitHubGroupActivity } from './lib/github-api.js';
+import { fetchGitLabContributions, fetchGitLabActivity, fetchGitLabCommitDetail, fetchGitLabUserGroups, fetchGitLabGroupActivity } from './lib/gitlab-api.js';
+import { getCached, setCache, clearCache, clearCacheByPrefix } from './lib/cache.js';
 
 /**
  * Listener principal de mensajes del popup.
@@ -80,12 +80,16 @@ async function handleMessage(message) {
       // Limpiar la caché de contribuciones y actividad del proveedor
       await clearCache(`${message.provider}_contributions`);
       await clearCache(`${message.provider}_activity`);
-      // Limpiar datos específicos del proveedor (username, proyectos, etc.)
+      // Limpiar datos específicos del proveedor (username, proyectos, grupos, actividad de grupos)
       if (message.provider === 'gitlab') {
         await chrome.storage.local.remove(['gitlab_username', 'gitlab_projects']);
+        await clearCache('gitlab_user_groups');
+        await clearCacheByPrefix('group_activity_gl_');
       }
       if (message.provider === 'github') {
         await chrome.storage.local.remove('github_username');
+        await clearCache('github_user_orgs');
+        await clearCacheByPrefix('group_activity_gh_');
       }
       return { success: true };
     }
@@ -109,6 +113,14 @@ async function handleMessage(message) {
     // Obtener detalles de un commit específico
     case 'FETCH_COMMIT_DETAIL':
       return fetchCommitDetail(message.provider, message.repo, message.sha, message.projectId);
+
+    // Obtener la lista de orgs/grupos del usuario para todos los proveedores conectados
+    case 'FETCH_USER_GROUPS':
+      return fetchAllUserGroups(message.forceRefresh);
+
+    // Obtener la actividad de un grupo/org específico
+    case 'FETCH_GROUP_ACTIVITY':
+      return fetchGroupActivity(message.provider, message.ref, message.forceRefresh);
 
     default:
       throw new Error(`Unknown message type: ${message.type}`);
@@ -266,6 +278,112 @@ async function fetchAllActivity(forceRefresh = false) {
 
   await Promise.all(promises);
   return result;
+}
+
+/**
+ * Obtiene la lista de orgs/grupos de un proveedor con soporte de caché.
+ * Misma estrategia de caché que fetchContributions/fetchActivity: try cache,
+ * llamar API, setCache, fallback stale en error, UNAUTHORIZED → removeToken.
+ *
+ * @param {string} provider - Proveedor ('github' o 'gitlab').
+ * @param {boolean} [forceRefresh=false] - Si es true, ignora el caché.
+ * @returns {Promise<{data: Array, fromCache: boolean, stale?: boolean}>}
+ */
+async function fetchUserGroups(provider, forceRefresh = false) {
+  const cacheKey = provider === 'github' ? 'github_user_orgs' : 'gitlab_user_groups';
+
+  if (!forceRefresh) {
+    const cached = await getCached(cacheKey);
+    if (cached) return { data: cached, fromCache: true };
+  }
+
+  try {
+    const data = provider === 'github'
+      ? await fetchGitHubUserOrgs()
+      : await fetchGitLabUserGroups();
+    await setCache(cacheKey, data);
+    return { data, fromCache: false };
+  } catch (err) {
+    if (err.message === 'UNAUTHORIZED') {
+      await removeToken(provider);
+      throw err;
+    }
+    const stale = await getCached(cacheKey);
+    if (stale) return { data: stale, fromCache: true, stale: true };
+    throw err;
+  }
+}
+
+/**
+ * Obtiene los grupos de TODOS los proveedores conectados en paralelo.
+ * Los errores de cada proveedor se capturan individualmente para que un fallo
+ * en uno no afecte al otro (mismo patrón que fetchAllContributions/fetchAllActivity).
+ *
+ * @param {boolean} [forceRefresh=false] - Si es true, ignorar el caché.
+ * @returns {Promise<{github: Object|null, gitlab: Object|null, githubError?: string, gitlabError?: string}>}
+ */
+async function fetchAllUserGroups(forceRefresh = false) {
+  const authState = await getAuthState();
+  const result = { github: null, gitlab: null };
+  const promises = [];
+
+  if (authState.github) {
+    promises.push(
+      fetchUserGroups('github', forceRefresh)
+        .then(r => { result.github = r; })
+        .catch(err => { result.githubError = err.message; })
+    );
+  }
+  if (authState.gitlab) {
+    promises.push(
+      fetchUserGroups('gitlab', forceRefresh)
+        .then(r => { result.gitlab = r; })
+        .catch(err => { result.gitlabError = err.message; })
+    );
+  }
+
+  await Promise.all(promises);
+  return result;
+}
+
+/**
+ * Obtiene la actividad reciente de un grupo/org específico, con soporte de caché.
+ * La clave de caché es única por grupo: `group_activity_{gh|gl}_{ref}`.
+ *
+ * @param {string} provider - Proveedor ('github' o 'gitlab').
+ * @param {string|number} ref - Login de la org (GitHub) o id del grupo (GitLab).
+ * @param {boolean} [forceRefresh=false] - Si es true, ignora el caché.
+ * @returns {Promise<{data: Array, fromCache: boolean, stale?: boolean}>}
+ */
+async function fetchGroupActivity(provider, ref, forceRefresh = false) {
+  const shortProv = provider === 'github' ? 'gh' : 'gl';
+  const cacheKey = `group_activity_${shortProv}_${ref}`;
+
+  if (!forceRefresh) {
+    const cached = await getCached(cacheKey);
+    // Backwards-compat: items normalizados antes de agregar el campo `actor` no
+    // tienen esa propiedad. Si detectamos un cache en ese formato antiguo, lo
+    // tratamos como obsoleto para forzar un re-fetch y poder mostrar el autor.
+    if (cached && (!Array.isArray(cached) || cached.length === 0 || cached.some(it => it && 'actor' in it))) {
+      return { data: cached, fromCache: true };
+    }
+  }
+
+  try {
+    const data = provider === 'github'
+      ? await fetchGitHubGroupActivity(ref)
+      : await fetchGitLabGroupActivity(ref);
+    await setCache(cacheKey, data);
+    return { data, fromCache: false };
+  } catch (err) {
+    if (err.message === 'UNAUTHORIZED') {
+      await removeToken(provider);
+      throw err;
+    }
+    const stale = await getCached(cacheKey);
+    if (stale) return { data: stale, fromCache: true, stale: true };
+    throw err;
+  }
 }
 
 /**

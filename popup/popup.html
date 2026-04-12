@@ -35,6 +35,20 @@
   </div>
 
   <div id="activity-section" class="activity-section">
+    <div class="main-tabs" role="tablist">
+      <button type="button" id="tab-user" class="main-tab active" data-tab="user"
+              role="tab" aria-selected="true"
+              data-i18n="mainTab.user" data-i18n-title="mainTab.userTitle">User Activity</button>
+      <button type="button" id="tab-groups" class="main-tab" data-tab="groups"
+              role="tab" aria-selected="false"
+              data-i18n="mainTab.groups" data-i18n-title="mainTab.groupsTitle">Group Activity</button>
+    </div>
+
+    <div id="group-tabs-container" class="group-tabs-container hidden">
+      <div id="group-tabs" class="group-tabs" role="tablist"></div>
+      <div id="group-tabs-empty" class="group-tabs-empty hidden" data-i18n="groupTab.noGroups">You are not a member of any organization or group.</div>
+    </div>
+
     <div id="activity-feed" class="activity-feed">
       <div class="section-header">
         <h2 data-i18n="popup.recentActivity">Recent Activity</h2>

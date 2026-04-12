@@ -15,6 +15,20 @@ export default {
   "activityFilter.githubTitle": "Mostrar solo GitHub",
   "activityFilter.gitlabTitle": "Mostrar solo GitLab",
 
+  // ── Main tabs (User / Groups) ──
+  "mainTab.user": "Mi actividad",
+  "mainTab.userTitle": "Tu actividad reciente",
+  "mainTab.groups": "Actividad de grupos",
+  "mainTab.groupsTitle": "Actividad dentro de las organizaciones y grupos a los que perteneces",
+
+  // ── Group tab ──
+  "groupTab.loadingGroups": "Cargando tus grupos\u2026",
+  "groupTab.noGroups": "No perteneces a ninguna organizaci\u00f3n o grupo.",
+  "groupTab.loadError": "No se pudo cargar la actividad del grupo.",
+  "groupTab.retry": "Reintentar",
+  "groupTab.selectGroup": "Selecciona un grupo para ver su actividad.",
+  "groupTab.loadingActivity": "Cargando actividad del grupo\u2026",
+
   // ── Status messages ──
   "status.loading": "Cargando contribuciones...",
   "status.cachedData": "Mostrando datos en cach\u00e9. Algunos datos pueden estar desactualizados.",
