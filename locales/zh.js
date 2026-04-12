@@ -92,6 +92,9 @@ export default {
   "heatmap.tooltipGitHubOne": "{date}\uff1a1 \u6b21\u8d21\u732e\uff08GitHub\uff09",
   "heatmap.tooltipGitLab": "{date}\uff1a{count} \u6b21\u8d21\u732e\uff08GitLab\uff09",
   "heatmap.tooltipGitLabOne": "{date}\uff1a1 \u6b21\u8d21\u732e\uff08GitLab\uff09",
+  "heatmap.toggleShow": "\u663e\u793a\u70ed\u529b\u56fe",
+  "heatmap.toggleHide": "\u9690\u85cf\u70ed\u529b\u56fe",
+  "heatmap.download": "\u4e0b\u8f7d\u70ed\u529b\u56fe\u4e3a\u56fe\u7247",
   "heatmap.tooltipNone": "{date}\uff1a\u65e0\u8d21\u732e",
 
   // ── Months ──

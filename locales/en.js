@@ -92,6 +92,9 @@ export default {
   "heatmap.tooltipGitHubOne": "{date}: 1 contribution (GitHub)",
   "heatmap.tooltipGitLab": "{date}: {count} contributions (GitLab)",
   "heatmap.tooltipGitLabOne": "{date}: 1 contribution (GitLab)",
+  "heatmap.toggleShow": "Show heatmap",
+  "heatmap.toggleHide": "Hide heatmap",
+  "heatmap.download": "Download heatmap as image",
   "heatmap.tooltipNone": "{date}: No contributions",
 
   // ── Months ──

@@ -98,6 +98,15 @@ const groupTabsEmpty = document.getElementById('group-tabs-empty');
 /** @type {HTMLElement} Contenedor del filtro por proveedor (se oculta en modo grupo) */
 const activityFilterGroup = document.querySelector('.activity-filter-group');
 
+/** @type {HTMLElement} Toolbar de acciones del heatmap (ocultar/descargar) */
+const heatmapToolbar = document.getElementById('heatmap-toolbar');
+
+/** @type {HTMLButtonElement} Botón para ocultar/mostrar el heatmap */
+const btnToggleHeatmap = document.getElementById('btn-toggle-heatmap');
+
+/** @type {HTMLButtonElement} Botón para descargar el heatmap como imagen */
+const btnDownloadHeatmap = document.getElementById('btn-download-heatmap');
+
 // ── Estado de la aplicación ──
 
 /** @type {{github: boolean, gitlab: boolean}} Estado de autenticación de cada proveedor */
@@ -286,6 +295,7 @@ async function loadCachedDataFromStorage() {
     // Si hay datos de contribuciones, renderizar el heatmap inmediatamente
     if (githubData || gitlabData) {
       renderHeatmap(heatmapContainer, githubData, gitlabData);
+      setHeatmapToolbarVisible(true);
     }
 
     // Cargar y renderizar la actividad cacheada del usuario
@@ -320,6 +330,7 @@ async function loadContributions(forceRefresh = false) {
   // Si no hay proveedores conectados, mostrar un mensaje placeholder
   if (!authState.github && !authState.gitlab) {
     heatmapContainer.innerHTML = `<p class="placeholder">${t('popup.placeholder')}</p>`;
+    setHeatmapToolbarVisible(false);
     return;
   }
 
@@ -339,6 +350,7 @@ async function loadContributions(forceRefresh = false) {
     gitlabData = result.gitlab?.data || gitlabData;
     // Re-renderizar el heatmap con los datos actualizados
     renderHeatmap(heatmapContainer, githubData, gitlabData);
+    setHeatmapToolbarVisible(true);
 
     // Mostrar advertencia si alguno de los datos viene del caché obsoleto
     if (result.github?.stale || result.gitlab?.stale) {
@@ -1107,6 +1119,164 @@ btnOptions.addEventListener('click', () => {
  * Handler del botón "Volver": cierra el panel de detalle y vuelve al feed.
  */
 btnBack.addEventListener('click', hideDetail);
+
+// ── Heatmap toolbar (ocultar/mostrar y descargar) ──
+
+/**
+ * Muestra u oculta la toolbar del heatmap según haya datos disponibles.
+ * @param {boolean} show - Si la toolbar debe ser visible.
+ */
+function setHeatmapToolbarVisible(show) {
+  heatmapToolbar.classList.toggle('visible', show);
+}
+
+/**
+ * Aplica el estado de visibilidad del heatmap (colapsado o expandido).
+ * Actualiza el icono del botón de toggle y el estado del botón de descarga.
+ * @param {boolean} collapsed - Si el heatmap debe estar oculto.
+ */
+function applyHeatmapCollapsed(collapsed) {
+  heatmapContainer.classList.toggle('collapsed', collapsed);
+  document.getElementById('icon-eye-open').classList.toggle('hidden', collapsed);
+  document.getElementById('icon-eye-closed').classList.toggle('hidden', !collapsed);
+  btnDownloadHeatmap.disabled = collapsed;
+  btnToggleHeatmap.title = collapsed ? t('heatmap.toggleShow') : t('heatmap.toggleHide');
+}
+
+/**
+ * Handler del botón de toggle del heatmap: alterna visibilidad y persiste la preferencia.
+ */
+btnToggleHeatmap.addEventListener('click', () => {
+  const collapsed = !heatmapContainer.classList.contains('collapsed');
+  applyHeatmapCollapsed(collapsed);
+  localStorage.setItem('heatmap_collapsed', collapsed ? '1' : '0');
+});
+
+/**
+ * Handler del botón de descarga: convierte el SVG del heatmap a PNG y lo descarga.
+ * Inyecta los estilos CSS necesarios en el SVG para que se renderice correctamente
+ * como imagen independiente, y dibuja la leyenda de colores debajo usando Canvas 2D.
+ */
+btnDownloadHeatmap.addEventListener('click', () => {
+  const svgEl = heatmapContainer.querySelector('.heatmap-svg');
+  if (!svgEl) return;
+
+  // Clonar el SVG e inyectar los estilos que normalmente vienen del CSS externo
+  const clone = svgEl.cloneNode(true);
+  const vb = svgEl.viewBox.baseVal;
+  clone.setAttribute('width', vb.width);
+  clone.setAttribute('height', vb.height);
+
+  const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+  styleEl.textContent =
+    '.heatmap-label{font-size:10px;fill:#8b949e;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}' +
+    '.heatmap-cell{shape-rendering:geometricPrecision}';
+  clone.insertBefore(styleEl, clone.firstChild);
+
+  const svgData = new XMLSerializer().serializeToString(clone);
+  const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+
+  const img = new Image();
+  img.onload = () => {
+    const scale = 2;
+    const legendPad = 8;
+    const legendH = 16;
+    const w = vb.width;
+    const h = vb.height + legendPad + legendH;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w * scale;
+    canvas.height = h * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    // Fondo blanco
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+
+    // Dibujar el SVG del heatmap
+    ctx.drawImage(img, 0, 0, w, vb.height);
+    URL.revokeObjectURL(url);
+
+    // Dibujar la leyenda leyendo los elementos del DOM
+    const legendEl = heatmapContainer.querySelector('.heatmap-legend');
+    if (legendEl) {
+      drawLegendOnCanvas(ctx, legendEl, w, vb.height + legendPad);
+    }
+
+    canvas.toBlob((blob) => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'heatmap.png';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }, 'image/png');
+  };
+  img.src = url;
+});
+
+/**
+ * Dibuja la leyenda del heatmap en un canvas 2D, leyendo colores y textos
+ * directamente de los elementos del DOM para mantenerse sincronizado.
+ *
+ * @param {CanvasRenderingContext2D} ctx - Contexto del canvas.
+ * @param {HTMLElement} legendEl - Elemento .heatmap-legend del DOM.
+ * @param {number} canvasW - Ancho del canvas (sin escalar).
+ * @param {number} y - Posición Y donde dibujar la leyenda.
+ */
+function drawLegendOnCanvas(ctx, legendEl, canvasW, y) {
+  const font = '10px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif';
+  ctx.font = font;
+  ctx.textBaseline = 'middle';
+  const cellSize = 11;
+  const gap = 3;
+  const midY = y + cellSize / 2;
+
+  // Recopilar los elementos de la leyenda desde el DOM
+  const items = [];
+  for (const child of legendEl.children) {
+    if (child.classList.contains('legend-label')) {
+      items.push({ type: 'label', text: child.textContent });
+    } else if (child.classList.contains('legend-cell')) {
+      items.push({ type: 'cell', color: child.style.background || child.style.backgroundColor });
+    } else if (child.classList.contains('legend-divider')) {
+      items.push({ type: 'divider' });
+    }
+  }
+
+  // Calcular el ancho total para alinear a la derecha
+  let totalW = 0;
+  for (const it of items) {
+    if (it.type === 'label') totalW += ctx.measureText(it.text).width + 6;
+    else if (it.type === 'cell') totalW += cellSize + gap;
+    else if (it.type === 'divider') totalW += 13;
+  }
+
+  let x = canvasW - totalW - 5;
+  for (const it of items) {
+    if (it.type === 'label') {
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText(it.text, x, midY);
+      x += ctx.measureText(it.text).width + 6;
+    } else if (it.type === 'cell') {
+      ctx.fillStyle = it.color;
+      ctx.beginPath();
+      ctx.roundRect(x, y, cellSize, cellSize, 2);
+      ctx.fill();
+      x += cellSize + gap;
+    } else if (it.type === 'divider') {
+      ctx.fillStyle = '#d0d7de';
+      ctx.fillRect(x + 6, y, 1, cellSize);
+      x += 13;
+    }
+  }
+}
+
+// Restaurar la preferencia de visibilidad del heatmap al arrancar
+if (localStorage.getItem('heatmap_collapsed') === '1') {
+  applyHeatmapCollapsed(true);
+}
 
 // ── Funciones auxiliares ──
 

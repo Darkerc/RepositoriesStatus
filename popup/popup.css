@@ -175,10 +175,41 @@ h1 {
 .status-bar.warning { background: #fff8c5; color: #6a5900; border: 1px solid #d4a72c; }
 .status-bar.info { background: #ddf4ff; color: #0550ae; border: 1px solid #54aeff; }
 
+/* ── Heatmap toolbar ── */
+.heatmap-toolbar {
+  display: none;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.heatmap-toolbar.visible {
+  display: flex;
+}
+
+.heatmap-toolbar .icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 6px;
+}
+
+.heatmap-toolbar .icon-btn svg {
+  display: block;
+}
+
+.heatmap-toolbar .icon-btn svg.hidden {
+  display: none;
+}
+
 /* ── Heatmap ── */
 .heatmap-container {
   margin-bottom: 14px;
   overflow: hidden;
+}
+
+.heatmap-container.collapsed {
+  display: none;
 }
 
 .placeholder {
