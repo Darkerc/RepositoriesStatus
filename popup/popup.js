@@ -107,6 +107,18 @@ const btnToggleHeatmap = document.getElementById('btn-toggle-heatmap');
 /** @type {HTMLButtonElement} Botón para descargar el heatmap como imagen */
 const btnDownloadHeatmap = document.getElementById('btn-download-heatmap');
 
+/** @type {HTMLButtonElement} Botón para cambiar el tema (claro/oscuro/sistema) */
+const btnTheme = document.getElementById('btn-theme');
+
+/** @type {SVGElement} Icono de sol (tema claro) */
+const iconSun = document.getElementById('icon-sun');
+
+/** @type {SVGElement} Icono de luna (tema oscuro) */
+const iconMoon = document.getElementById('icon-moon');
+
+/** @type {SVGElement} Icono de monitor (tema sistema) */
+const iconSystem = document.getElementById('icon-system');
+
 // ── Estado de la aplicación ──
 
 /** @type {{github: boolean, gitlab: boolean}} Estado de autenticación de cada proveedor */
@@ -141,6 +153,12 @@ let groupsLoaded = false;
 /** @type {boolean} Guard de concurrencia para evitar cargas paralelas de la lista de grupos */
 let groupsLoading = false;
 
+/** @type {'system'|'light'|'dark'} Preferencia de tema del usuario */
+let themePref = 'system';
+
+/** @const {string[]} Opciones de tema disponibles para el ciclo */
+const THEMES = ['system', 'light', 'dark'];
+
 /** @type {{provider: string, ref: string|number, name: string}|null} Grupo actualmente seleccionado en el strip */
 let selectedGroup = null;
 
@@ -162,6 +180,7 @@ document.addEventListener('DOMContentLoaded', init);
 async function init() {
   await initI18n();
   translatePage();
+  await initTheme();
   initLanguageSelector();
   await initActivityFilter();
   await initMainTabs();
@@ -179,6 +198,96 @@ async function init() {
     loadContributions(),
     loadActivity(),
   ]);
+}
+
+// ── Tema (claro / oscuro / sistema) ──
+
+/**
+ * Inicializa el sistema de temas: carga la preferencia persistida, aplica el tema,
+ * escucha cambios del tema del SO y conecta el botón de cambio de tema.
+ */
+async function initTheme() {
+  try {
+    const stored = await chrome.storage.local.get('user_theme');
+    if (stored.user_theme && THEMES.includes(stored.user_theme)) {
+      themePref = stored.user_theme;
+    }
+  } catch { /* por defecto 'system' */ }
+
+  applyTheme();
+
+  // Escuchar cambios del tema del SO (afecta solo al modo 'system')
+  window.matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', () => {
+      if (themePref === 'system') {
+        applyTheme();
+        rerenderHeatmapIfVisible();
+      }
+    });
+
+  btnTheme.addEventListener('click', cycleTheme);
+}
+
+/**
+ * Aplica el tema actual al DOM: establece o elimina el atributo data-theme
+ * en el elemento <html> y sincroniza localStorage para prevenir flash.
+ */
+function applyTheme() {
+  const html = document.documentElement;
+
+  if (themePref === 'system') {
+    html.removeAttribute('data-theme');
+  } else {
+    html.setAttribute('data-theme', themePref);
+  }
+
+  // Sincronizar localStorage para prevención de flash al abrir
+  localStorage.setItem('user_theme', themePref);
+
+  updateThemeIcon();
+}
+
+/**
+ * Retorna el tema efectivo resuelto: 'light' o 'dark'.
+ * Cuando la preferencia es 'system', consulta la media query del SO.
+ * @returns {'light'|'dark'}
+ */
+function getEffectiveTheme() {
+  if (themePref !== 'system') return themePref;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+/**
+ * Actualiza el icono y tooltip del botón de tema según la preferencia actual.
+ */
+function updateThemeIcon() {
+  iconSun.classList.toggle('hidden', themePref !== 'light');
+  iconMoon.classList.toggle('hidden', themePref !== 'dark');
+  iconSystem.classList.toggle('hidden', themePref !== 'system');
+
+  const tooltipKey = 'theme.' + themePref;
+  btnTheme.title = t(tooltipKey);
+}
+
+/**
+ * Cicla entre los temas: system → light → dark → system.
+ * Persiste la preferencia y re-renderiza el heatmap si es necesario.
+ */
+function cycleTheme() {
+  const idx = THEMES.indexOf(themePref);
+  themePref = THEMES[(idx + 1) % THEMES.length];
+  applyTheme();
+  chrome.storage.local.set({ user_theme: themePref });
+  rerenderHeatmapIfVisible();
+}
+
+/**
+ * Re-renderiza el heatmap si hay datos visibles (para actualizar celdas vacías al cambiar tema).
+ */
+function rerenderHeatmapIfVisible() {
+  if (githubData || gitlabData) {
+    renderHeatmap(heatmapContainer, githubData, gitlabData);
+  }
 }
 
 // ── Estado de autenticación ──
@@ -1167,9 +1276,10 @@ btnDownloadHeatmap.addEventListener('click', () => {
   clone.setAttribute('width', vb.width);
   clone.setAttribute('height', vb.height);
 
+  const labelColor = getEffectiveTheme() === 'dark' ? '#8b949e' : '#8b949e';
   const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
   styleEl.textContent =
-    '.heatmap-label{font-size:10px;fill:#8b949e;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}' +
+    `.heatmap-label{font-size:10px;fill:${labelColor};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}` +
     '.heatmap-cell{shape-rendering:geometricPrecision}';
   clone.insertBefore(styleEl, clone.firstChild);
 
@@ -1191,8 +1301,8 @@ btnDownloadHeatmap.addEventListener('click', () => {
     const ctx = canvas.getContext('2d');
     ctx.scale(scale, scale);
 
-    // Fondo blanco
-    ctx.fillStyle = '#ffffff';
+    // Fondo según el tema activo
+    ctx.fillStyle = getEffectiveTheme() === 'dark' ? '#0d1117' : '#ffffff';
     ctx.fillRect(0, 0, w, h);
 
     // Dibujar el SVG del heatmap
@@ -1256,7 +1366,7 @@ function drawLegendOnCanvas(ctx, legendEl, canvasW, y) {
   let x = canvasW - totalW - 5;
   for (const it of items) {
     if (it.type === 'label') {
-      ctx.fillStyle = '#8b949e';
+      ctx.fillStyle = getEffectiveTheme() === 'dark' ? '#8b949e' : '#8b949e';
       ctx.fillText(it.text, x, midY);
       x += ctx.measureText(it.text).width + 6;
     } else if (it.type === 'cell') {
@@ -1266,7 +1376,7 @@ function drawLegendOnCanvas(ctx, legendEl, canvasW, y) {
       ctx.fill();
       x += cellSize + gap;
     } else if (it.type === 'divider') {
-      ctx.fillStyle = '#d0d7de';
+      ctx.fillStyle = getEffectiveTheme() === 'dark' ? '#30363d' : '#d0d7de';
       ctx.fillRect(x + 6, y, 1, cellSize);
       x += 13;
     }

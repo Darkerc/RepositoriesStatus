@@ -35,6 +35,17 @@ const messageEl = document.getElementById('message');
  * Si no hay URL personalizada guardada, el campo queda vacío (se usará gitlab.com).
  */
 document.addEventListener('DOMContentLoaded', async () => {
+  // Aplicar tema desde chrome.storage.local (reconcilia con el script anti-flash de localStorage)
+  try {
+    const themeResult = await chrome.storage.local.get('user_theme');
+    const pref = themeResult.user_theme || 'system';
+    if (pref === 'light' || pref === 'dark') {
+      document.documentElement.setAttribute('data-theme', pref);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  } catch { /* por defecto usa el tema del sistema via @media query */ }
+
   await initI18n();
   translatePage();
 

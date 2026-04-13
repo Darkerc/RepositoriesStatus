@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    var _t = localStorage.getItem('user_theme');
+    if (_t === 'light' || _t === 'dark') document.documentElement.setAttribute('data-theme', _t);
+  </script>
   <link rel="stylesheet" href="popup.css">
   <title>Contribution Heatmap</title>
 </head>
@@ -15,6 +19,17 @@
         <option value="es">ES</option>
         <option value="zh">ZH</option>
       </select>
+      <button id="btn-theme" class="icon-btn" data-i18n-title="theme.system" title="Theme: System">
+        <svg id="icon-sun" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="hidden">
+          <path d="M8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM3.05 2.34a.75.75 0 011.06 0l1.06 1.06a.75.75 0 11-1.06 1.06L3.05 3.4a.75.75 0 010-1.06zm8.84 8.84a.75.75 0 011.06 0l1.06 1.06a.75.75 0 11-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zM0 8a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5H.75A.75.75 0 010 8zm13 0a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5A.75.75 0 0113 8zM3.05 13.66a.75.75 0 010-1.06l1.06-1.06a.75.75 0 111.06 1.06l-1.06 1.06a.75.75 0 01-1.06 0zm8.84-8.84a.75.75 0 010-1.06l1.06-1.06a.75.75 0 111.06 1.06l-1.06 1.06a.75.75 0 01-1.06 0z"/>
+        </svg>
+        <svg id="icon-moon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="hidden">
+          <path d="M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786z"/>
+        </svg>
+        <svg id="icon-system" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M1 3.5A1.5 1.5 0 012.5 2h11A1.5 1.5 0 0115 3.5v7a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 10.5v-7zM2.5 3a.5.5 0 00-.5.5v7a.5.5 0 00.5.5h11a.5.5 0 00.5-.5v-7a.5.5 0 00-.5-.5h-11zM5 14.5a.75.75 0 010-1.5h6a.75.75 0 010 1.5H5z"/>
+        </svg>
+      </button>
       <button id="btn-github" class="provider-btn" data-i18n-title="popup.connectGitHub" title="Connect GitHub">
         <span class="provider-dot gh-dot"></span>
         <span class="provider-label">GitHub</span>

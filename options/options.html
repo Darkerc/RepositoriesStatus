@@ -3,50 +3,104 @@
 <head>
   <meta charset="UTF-8">
   <title>Contribution Heatmap - Options</title>
+  <script>
+    var _t = localStorage.getItem('user_theme');
+    if (_t === 'light' || _t === 'dark') document.documentElement.setAttribute('data-theme', _t);
+  </script>
   <style>
+    :root {
+      --color-text-primary: #24292f;
+      --color-text-secondary: #57606a;
+      --color-bg-primary: #ffffff;
+      --color-border-primary: #d0d7de;
+      --color-accent-blue: #0969da;
+      --color-focus-ring: rgba(9, 105, 218, 0.15);
+      --color-btn-bg: #2da44e;
+      --color-btn-hover: #218838;
+      --color-success-bg: #dafbe1;
+      --color-success-text: #116329;
+      --color-error-bg: #ffebe9;
+      --color-error-text: #82071e;
+    }
+
+    html[data-theme="dark"] {
+      --color-text-primary: #e6edf3;
+      --color-text-secondary: #8b949e;
+      --color-bg-primary: #0d1117;
+      --color-border-primary: #30363d;
+      --color-accent-blue: #58a6ff;
+      --color-focus-ring: rgba(56, 139, 253, 0.3);
+      --color-btn-bg: #238636;
+      --color-btn-hover: #2ea043;
+      --color-success-bg: rgba(63, 185, 80, 0.15);
+      --color-success-text: #3fb950;
+      --color-error-bg: rgba(248, 81, 73, 0.15);
+      --color-error-text: #ff7b72;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      html:not([data-theme]) {
+        --color-text-primary: #e6edf3;
+        --color-text-secondary: #8b949e;
+        --color-bg-primary: #0d1117;
+        --color-border-primary: #30363d;
+        --color-accent-blue: #58a6ff;
+        --color-focus-ring: rgba(56, 139, 253, 0.3);
+        --color-btn-bg: #238636;
+        --color-btn-hover: #2ea043;
+        --color-success-bg: rgba(63, 185, 80, 0.15);
+        --color-success-text: #3fb950;
+        --color-error-bg: rgba(248, 81, 73, 0.15);
+        --color-error-text: #ff7b72;
+      }
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
       font-size: 14px;
-      color: #24292f;
+      color: var(--color-text-primary);
+      background: var(--color-bg-primary);
       padding: 20px;
       max-width: 500px;
     }
     h2 { font-size: 16px; margin-bottom: 16px; }
     label { display: block; font-weight: 500; margin-bottom: 6px; }
-    .help { font-size: 12px; color: #57606a; margin-bottom: 8px; }
+    .help { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 8px; }
     input[type="url"] {
       width: 100%;
       padding: 6px 10px;
-      border: 1px solid #d0d7de;
+      border: 1px solid var(--color-border-primary);
       border-radius: 6px;
       font-size: 13px;
+      color: var(--color-text-primary);
+      background: var(--color-bg-primary);
     }
     input[type="url"]:focus {
       outline: none;
-      border-color: #0969da;
-      box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.15);
+      border-color: var(--color-accent-blue);
+      box-shadow: 0 0 0 3px var(--color-focus-ring);
     }
     .btn {
       margin-top: 12px;
       padding: 6px 16px;
-      border: 1px solid #d0d7de;
+      border: 1px solid var(--color-border-primary);
       border-radius: 6px;
-      background: #2da44e;
+      background: var(--color-btn-bg);
       color: #fff;
       font-size: 13px;
       font-weight: 500;
       cursor: pointer;
     }
-    .btn:hover { background: #218838; }
+    .btn:hover { background: var(--color-btn-hover); }
     .message {
       margin-top: 10px;
       font-size: 12px;
       padding: 6px 10px;
       border-radius: 6px;
     }
-    .message.success { background: #dafbe1; color: #116329; }
-    .message.error { background: #ffebe9; color: #82071e; }
+    .message.success { background: var(--color-success-bg); color: var(--color-success-text); }
+    .message.error { background: var(--color-error-bg); color: var(--color-error-text); }
     .message.hidden { display: none; }
   </style>
 </head>

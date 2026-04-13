@@ -123,6 +123,12 @@ export default {
   "options.permissionError": "Error de permisos: {error}",
   "options.saved": "Configuraci\u00f3n guardada.",
 
+  // ── Theme ──
+  "theme.toggle": "Cambiar tema",
+  "theme.system": "Tema: Sistema",
+  "theme.light": "Tema: Claro",
+  "theme.dark": "Tema: Oscuro",
+
   // ── Language selector ──
   "lang.label": "Idioma",
 };

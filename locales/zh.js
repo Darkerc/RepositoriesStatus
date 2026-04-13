@@ -123,6 +123,12 @@ export default {
   "options.permissionError": "\u6743\u9650\u9519\u8bef\uff1a{error}",
   "options.saved": "\u8bbe\u7f6e\u5df2\u4fdd\u5b58\u3002",
 
+  // ── Theme ──
+  "theme.toggle": "\u5207\u6362\u4e3b\u9898",
+  "theme.system": "\u4e3b\u9898\uff1a\u8ddf\u968f\u7cfb\u7edf",
+  "theme.light": "\u4e3b\u9898\uff1a\u6d45\u8272",
+  "theme.dark": "\u4e3b\u9898\uff1a\u6df1\u8272",
+
   // ── Language selector ──
   "lang.label": "\u8bed\u8a00",
 };
