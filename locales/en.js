@@ -96,6 +96,11 @@ export default {
   "heatmap.toggleHide": "Hide heatmap",
   "heatmap.download": "Download heatmap as image",
   "heatmap.tooltipNone": "{date}: No contributions",
+  "heatmap.customColors": "Customize heatmap colors",
+  "heatmap.githubColor": "GitHub",
+  "heatmap.gitlabColor": "GitLab",
+  "heatmap.mixedColor": "Mixed",
+  "heatmap.resetColors": "Reset",
 
   // ── Months ──
   "month.0": "Jan",

@@ -334,6 +334,72 @@ h1 {
   display: none;
 }
 
+/* ── Heatmap color picker panel ── */
+.heatmap-color-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-primary);
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.heatmap-color-panel.hidden {
+  display: none;
+}
+
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.color-picker-row label {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.color-picker-row input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: 4px;
+  padding: 1px;
+  cursor: pointer;
+  background: none;
+}
+
+.color-picker-row input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-picker-row input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.color-reset-btn {
+  font-size: 11px;
+  padding: 3px 10px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: 20px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.color-reset-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
 /* ── Heatmap ── */
 .heatmap-container {
   margin-bottom: 5px;
@@ -441,7 +507,7 @@ h1 {
 
 .activity-filter-btn.active {
   border-color: transparent;
-  color: #181818;
+  color: var(--color-bg-hover);
   background: var(--color-text-primary);
 }
 

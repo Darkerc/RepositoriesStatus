@@ -27,7 +27,7 @@
  * Dependencias: heatmap.js (renderizado del mapa de calor).
  */
 
-import { renderHeatmap } from '../lib/heatmap.js';
+import { renderHeatmap, setCustomColors, getBaseColors } from '../lib/heatmap.js';
 import { initI18n, t, setLocale, getLocale, translatePage } from '../lib/i18n.js';
 
 // ── Referencias a elementos del DOM ──
@@ -107,6 +107,24 @@ const btnToggleHeatmap = document.getElementById('btn-toggle-heatmap');
 /** @type {HTMLButtonElement} Botón para descargar el heatmap como imagen */
 const btnDownloadHeatmap = document.getElementById('btn-download-heatmap');
 
+/** @type {HTMLButtonElement} Botón para abrir/cerrar el panel de colores del heatmap */
+const btnHeatmapColors = document.getElementById('btn-heatmap-colors');
+
+/** @type {HTMLElement} Panel de selección de colores del heatmap */
+const colorPanel = document.getElementById('heatmap-color-panel');
+
+/** @type {HTMLInputElement} Selector de color para GitHub */
+const colorGithub = document.getElementById('color-github');
+
+/** @type {HTMLInputElement} Selector de color para GitLab */
+const colorGitlab = document.getElementById('color-gitlab');
+
+/** @type {HTMLInputElement} Selector de color para Mixto */
+const colorMixed = document.getElementById('color-mixed');
+
+/** @type {HTMLButtonElement} Botón para restablecer colores por defecto */
+const btnResetColors = document.getElementById('btn-reset-colors');
+
 /** @type {HTMLButtonElement} Botón para cambiar el tema (claro/oscuro/sistema) */
 const btnTheme = document.getElementById('btn-theme');
 
@@ -181,6 +199,7 @@ async function init() {
   await initI18n();
   translatePage();
   await initTheme();
+  await initCustomColors();
   initLanguageSelector();
   await initActivityFilter();
   await initMainTabs();
@@ -288,6 +307,80 @@ function rerenderHeatmapIfVisible() {
   if (githubData || gitlabData) {
     renderHeatmap(heatmapContainer, githubData, gitlabData);
   }
+}
+
+// ── Colores personalizados del heatmap ──
+
+/** Colores base por defecto (referencia local para los pickers) */
+const DEFAULT_BASE = { github: '#216e39', gitlab: '#6d28d9', mixed: '#0d9488' };
+
+/**
+ * Valida que un string sea un color hexadecimal válido (#RRGGBB).
+ * @param {string} s - String a validar.
+ * @returns {boolean}
+ */
+function isValidHex(s) {
+  return typeof s === 'string' && /^#[0-9a-fA-F]{6}$/.test(s);
+}
+
+/**
+ * Carga los colores personalizados del storage y los aplica.
+ * Si no hay colores guardados, se mantienen los valores por defecto.
+ */
+async function initCustomColors() {
+  try {
+    const result = await chrome.storage.local.get('heatmap_custom_colors');
+    const c = result.heatmap_custom_colors;
+    if (c && isValidHex(c.github) && isValidHex(c.gitlab) && isValidHex(c.mixed)) {
+      setCustomColors(c);
+      syncColorPickers(c);
+    }
+  } catch { /* se mantienen los valores por defecto */ }
+}
+
+/**
+ * Aplica los colores de los pickers al heatmap (preview en tiempo real).
+ */
+function applyColorsLive() {
+  const colors = {
+    github: colorGithub.value,
+    gitlab: colorGitlab.value,
+    mixed: colorMixed.value,
+  };
+  setCustomColors(colors);
+  rerenderHeatmapIfVisible();
+}
+
+/**
+ * Persiste los colores actuales de los pickers en chrome.storage.local.
+ */
+function saveColors() {
+  const colors = {
+    github: colorGithub.value,
+    gitlab: colorGitlab.value,
+    mixed: colorMixed.value,
+  };
+  chrome.storage.local.set({ heatmap_custom_colors: colors });
+}
+
+/**
+ * Restablece los colores por defecto, limpia el storage y actualiza los pickers.
+ */
+function resetColors() {
+  setCustomColors(null);
+  chrome.storage.local.remove('heatmap_custom_colors');
+  syncColorPickers(DEFAULT_BASE);
+  rerenderHeatmapIfVisible();
+}
+
+/**
+ * Sincroniza los valores de los color pickers con los colores dados.
+ * @param {{github: string, gitlab: string, mixed: string}} colors
+ */
+function syncColorPickers(colors) {
+  colorGithub.value = colors.github;
+  colorGitlab.value = colors.gitlab;
+  colorMixed.value = colors.mixed;
 }
 
 // ── Estado de autenticación ──
@@ -1237,6 +1330,9 @@ btnBack.addEventListener('click', hideDetail);
  */
 function setHeatmapToolbarVisible(show) {
   heatmapToolbar.classList.toggle('visible', show);
+  if (!show) {
+    colorPanel.classList.add('hidden');
+  }
 }
 
 /**
@@ -1249,7 +1345,9 @@ function applyHeatmapCollapsed(collapsed) {
   document.getElementById('icon-eye-open').classList.toggle('hidden', collapsed);
   document.getElementById('icon-eye-closed').classList.toggle('hidden', !collapsed);
   btnDownloadHeatmap.disabled = collapsed;
+  btnHeatmapColors.disabled = collapsed;
   btnToggleHeatmap.title = collapsed ? t('heatmap.toggleShow') : t('heatmap.toggleHide');
+  if (collapsed) colorPanel.classList.add('hidden');
 }
 
 /**
@@ -1260,6 +1358,20 @@ btnToggleHeatmap.addEventListener('click', () => {
   applyHeatmapCollapsed(collapsed);
   localStorage.setItem('heatmap_collapsed', collapsed ? '1' : '0');
 });
+
+// ── Heatmap color picker ──
+
+btnHeatmapColors.addEventListener('click', () => {
+  colorPanel.classList.toggle('hidden');
+});
+
+colorGithub.addEventListener('input', applyColorsLive);
+colorGitlab.addEventListener('input', applyColorsLive);
+colorMixed.addEventListener('input', applyColorsLive);
+colorGithub.addEventListener('change', saveColors);
+colorGitlab.addEventListener('change', saveColors);
+colorMixed.addEventListener('change', saveColors);
+btnResetColors.addEventListener('click', resetColors);
 
 /**
  * Handler del botón de descarga: convierte el SVG del heatmap a PNG y lo descarga.

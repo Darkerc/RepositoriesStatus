@@ -96,6 +96,11 @@ export default {
   "heatmap.toggleHide": "\u9690\u85cf\u70ed\u529b\u56fe",
   "heatmap.download": "\u4e0b\u8f7d\u70ed\u529b\u56fe\u4e3a\u56fe\u7247",
   "heatmap.tooltipNone": "{date}\uff1a\u65e0\u8d21\u732e",
+  "heatmap.customColors": "\u81ea\u5b9a\u4e49\u70ed\u529b\u56fe\u989c\u8272",
+  "heatmap.githubColor": "GitHub",
+  "heatmap.gitlabColor": "GitLab",
+  "heatmap.mixedColor": "\u6df7\u5408",
+  "heatmap.resetColors": "\u91cd\u7f6e",
 
   // ── Months ──
   "month.0": "1\u6708",

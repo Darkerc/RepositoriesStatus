@@ -59,6 +59,29 @@
         <path d="M7.5 10.4L4.3 7.1a.5.5 0 01.7-.7L7.5 9V1.5a.5.5 0 011 0V9l2.5-2.6a.5.5 0 01.7.7L8.5 10.4a.7.7 0 01-1 0zM2 12.5a.5.5 0 011 0v1h10v-1a.5.5 0 011 0v1.5a.5.5 0 01-.5.5h-11a.5.5 0 01-.5-.5v-1.5z"/>
       </svg>
     </button>
+    <button type="button" id="btn-heatmap-colors" class="icon-btn" data-i18n-title="heatmap.customColors" title="Customize heatmap colors">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0a8 8 0 100 16A8 8 0 008 0zM2.6 11.5a6.5 6.5 0 019.5-8.2L3.3 12.1a6.5 6.5 0 01-.7-.6zm1.7 1.2l8.8-8.8a6.5 6.5 0 01-8.8 8.8z"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="heatmap-color-panel" class="heatmap-color-panel hidden">
+    <div class="color-picker-row">
+      <label data-i18n="heatmap.githubColor">GitHub</label>
+      <input type="color" id="color-github" value="#216e39">
+    </div>
+    <div class="color-picker-row">
+      <label data-i18n="heatmap.gitlabColor">GitLab</label>
+      <input type="color" id="color-gitlab" value="#6d28d9">
+    </div>
+    <div class="color-picker-row">
+      <label data-i18n="heatmap.mixedColor">Mixed</label>
+      <input type="color" id="color-mixed" value="#0d9488">
+    </div>
+    <div class="color-picker-actions">
+      <button type="button" id="btn-reset-colors" class="color-reset-btn" data-i18n="heatmap.resetColors">Reset</button>
+    </div>
   </div>
 
   <div id="heatmap-container" class="heatmap-container">
