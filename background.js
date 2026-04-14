@@ -108,7 +108,7 @@ async function handleMessage(message) {
 
     // Obtener actividad reciente de TODOS los proveedores conectados
     case 'FETCH_ALL_ACTIVITY':
-      return fetchAllActivity(message.forceRefresh);
+      return fetchAllActivity(message.forceRefresh, message.page, message.providers);
 
     // Obtener detalles de un commit específico
     case 'FETCH_COMMIT_DETAIL':
@@ -120,7 +120,7 @@ async function handleMessage(message) {
 
     // Obtener la actividad de un grupo/org específico
     case 'FETCH_GROUP_ACTIVITY':
-      return fetchGroupActivity(message.provider, message.ref, message.forceRefresh);
+      return fetchGroupActivity(message.provider, message.ref, message.forceRefresh, message.page);
 
     default:
       throw new Error(`Unknown message type: ${message.type}`);
@@ -223,28 +223,49 @@ async function fetchAllContributions(forceRefresh = false) {
  *   - stale: true si son datos obsoletos del caché (fallback).
  * @throws {Error} Si la API falla y no hay datos de respaldo.
  */
-async function fetchActivity(provider, forceRefresh = false) {
+async function fetchActivity(provider, forceRefresh = false, page = 1) {
   const cacheKey = `${provider}_activity`;
 
-  if (!forceRefresh) {
+  // Caché solo para la primera página. Las páginas > 1 siempre van a la API.
+  if (page === 1 && !forceRefresh) {
     const cached = await getCached(cacheKey);
-    if (cached) return { data: cached, fromCache: true };
+    // Caché antiguo podía guardar el array directo; el nuevo guarda {data, hasMore}.
+    if (cached) {
+      if (Array.isArray(cached)) {
+        return { data: cached, hasMore: cached.length >= 30, fromCache: true };
+      }
+      if (cached && typeof cached === 'object' && Array.isArray(cached.data)) {
+        return { data: cached.data, hasMore: !!cached.hasMore, fromCache: true };
+      }
+    }
   }
 
   try {
-    const data = provider === 'github'
-      ? await fetchGitHubActivity()
-      : await fetchGitLabActivity();
-    await setCache(cacheKey, data);
-    return { data, fromCache: false };
+    const result = provider === 'github'
+      ? await fetchGitHubActivity({ page })
+      : await fetchGitLabActivity({ page });
+    // Solo cachear la primera página.
+    if (page === 1) {
+      await setCache(cacheKey, { data: result.data, hasMore: result.hasMore });
+    }
+    return { data: result.data, hasMore: result.hasMore, fromCache: false };
   } catch (err) {
     if (err.message === 'UNAUTHORIZED') {
       await removeToken(provider);
       throw err;
     }
-    // Intentar servir datos obsoletos como respaldo
-    const stale = await getCached(cacheKey);
-    if (stale) return { data: stale, fromCache: true, stale: true };
+    // Fallback a datos obsoletos del caché (solo aplica a la primera página)
+    if (page === 1) {
+      const stale = await getCached(cacheKey);
+      if (stale) {
+        if (Array.isArray(stale)) {
+          return { data: stale, hasMore: stale.length >= 30, fromCache: true, stale: true };
+        }
+        if (stale && typeof stale === 'object' && Array.isArray(stale.data)) {
+          return { data: stale.data, hasMore: !!stale.hasMore, fromCache: true, stale: true };
+        }
+      }
+    }
     throw err;
   }
 }
@@ -256,21 +277,24 @@ async function fetchActivity(provider, forceRefresh = false) {
  * @param {boolean} [forceRefresh=false] - Si es true, ignorar el caché.
  * @returns {Promise<{github: Object|null, gitlab: Object|null, githubError?: string, gitlabError?: string}>}
  */
-async function fetchAllActivity(forceRefresh = false) {
+async function fetchAllActivity(forceRefresh = false, page = 1, providers) {
   const authState = await getAuthState();
   const result = { github: null, gitlab: null };
   const promises = [];
 
-  if (authState.github) {
+  // Si el caller especifica providers (ej. ['github']), solo se piden esos.
+  const want = (p) => !providers || providers.includes(p);
+
+  if (authState.github && want('github')) {
     promises.push(
-      fetchActivity('github', forceRefresh)
+      fetchActivity('github', forceRefresh, page)
         .then(r => { result.github = r; })
         .catch(err => { result.githubError = err.message; })
     );
   }
-  if (authState.gitlab) {
+  if (authState.gitlab && want('gitlab')) {
     promises.push(
-      fetchActivity('gitlab', forceRefresh)
+      fetchActivity('gitlab', forceRefresh, page)
         .then(r => { result.gitlab = r; })
         .catch(err => { result.gitlabError = err.message; })
     );
@@ -355,33 +379,51 @@ async function fetchAllUserGroups(forceRefresh = false) {
  * @param {boolean} [forceRefresh=false] - Si es true, ignora el caché.
  * @returns {Promise<{data: Array, fromCache: boolean, stale?: boolean}>}
  */
-async function fetchGroupActivity(provider, ref, forceRefresh = false) {
+async function fetchGroupActivity(provider, ref, forceRefresh = false, page = 1) {
   const shortProv = provider === 'github' ? 'gh' : 'gl';
   const cacheKey = `group_activity_${shortProv}_${ref}`;
 
-  if (!forceRefresh) {
+  // Caché solo para la primera página (mismo criterio que la actividad de usuario).
+  if (page === 1 && !forceRefresh) {
     const cached = await getCached(cacheKey);
-    // Backwards-compat: items normalizados antes de agregar el campo `actor` no
-    // tienen esa propiedad. Si detectamos un cache en ese formato antiguo, lo
-    // tratamos como obsoleto para forzar un re-fetch y poder mostrar el autor.
-    if (cached && (!Array.isArray(cached) || cached.length === 0 || cached.some(it => it && 'actor' in it))) {
-      return { data: cached, fromCache: true };
+    if (cached) {
+      // Soporte de formatos:
+      //  - Array legacy: items sin actor se consideran obsoletos y se re-fetchean.
+      //  - Objeto nuevo: { data, hasMore }.
+      if (Array.isArray(cached)) {
+        if (cached.length === 0 || cached.some(it => it && 'actor' in it)) {
+          return { data: cached, hasMore: cached.length >= 30, fromCache: true };
+        }
+      } else if (cached && typeof cached === 'object' && Array.isArray(cached.data)) {
+        return { data: cached.data, hasMore: !!cached.hasMore, fromCache: true };
+      }
     }
   }
 
   try {
-    const data = provider === 'github'
-      ? await fetchGitHubGroupActivity(ref)
-      : await fetchGitLabGroupActivity(ref);
-    await setCache(cacheKey, data);
-    return { data, fromCache: false };
+    const result = provider === 'github'
+      ? await fetchGitHubGroupActivity(ref, { page })
+      : await fetchGitLabGroupActivity(ref, { page });
+    if (page === 1) {
+      await setCache(cacheKey, { data: result.data, hasMore: result.hasMore });
+    }
+    return { data: result.data, hasMore: result.hasMore, fromCache: false };
   } catch (err) {
     if (err.message === 'UNAUTHORIZED') {
       await removeToken(provider);
       throw err;
     }
-    const stale = await getCached(cacheKey);
-    if (stale) return { data: stale, fromCache: true, stale: true };
+    if (page === 1) {
+      const stale = await getCached(cacheKey);
+      if (stale) {
+        if (Array.isArray(stale)) {
+          return { data: stale, hasMore: stale.length >= 30, fromCache: true, stale: true };
+        }
+        if (stale && typeof stale === 'object' && Array.isArray(stale.data)) {
+          return { data: stale.data, hasMore: !!stale.hasMore, fromCache: true, stale: true };
+        }
+      }
+    }
     throw err;
   }
 }

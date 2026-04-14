@@ -39,6 +39,8 @@ export default {
   "status.activityFailed": "Could not load activity.",
   "status.noActivity": "No recent activity.",
   "status.noActivityForFilter": "No activity for this filter.",
+  "status.loadingMore": "Loading more activity...",
+  "status.noMoreActivity": "No more activity.",
   "status.loadingFiles": "Loading file details...",
   "status.filesFailed": "Could not load file details.",
 

@@ -180,8 +180,26 @@ const THEMES = ['system', 'light', 'dark'];
 /** @type {{provider: string, ref: string|number, name: string}|null} Grupo actualmente seleccionado en el strip */
 let selectedGroup = null;
 
-/** @type {Object.<string, Array<Object>>} Caché en memoria de actividad por grupo ("{provider}:{ref}" → items) */
+/** @type {Object.<string, {items: Array<Object>, page: number, hasMore: boolean}>}
+ *  Caché en memoria de actividad por grupo, con cursor de paginación persistente
+ *  durante la vida del popup ("{provider}:{ref}" → estado paginado). */
 let groupActivityCache = {};
+
+/** Cursor de paginación del scroll infinito. Se resetea al cambiar de tab/grupo/refresh. */
+let pagination = {
+  user: {
+    github: { page: 1, hasMore: true },
+    gitlab: { page: 1, hasMore: true },
+  },
+  group: { page: 1, hasMore: true },
+  loading: false,
+};
+
+/** Set de IDs ya vistos en displayedActivities, para deduplicar al paginar. */
+let seenActivityIds = new Set();
+
+/** IntersectionObserver que observa el sentinel al final de la lista. */
+let infiniteScrollObserver = null;
 
 // ── Inicialización ──
 
@@ -595,18 +613,29 @@ async function loadContributions(forceRefresh = false) {
 async function loadActivity(forceRefresh = false) {
   if (!authState.github && !authState.gitlab) return;
 
-  try {
-    // Solicitar la actividad de todos los proveedores al background
-    const result = await sendMessage({ type: 'FETCH_ALL_ACTIVITY', forceRefresh });
+  // Reseteo de la paginación del tab de usuario en cada carga inicial / refresh.
+  pagination.user.github = { page: 1, hasMore: true };
+  pagination.user.gitlab = { page: 1, hasMore: true };
 
-    // Combinar la actividad de ambos proveedores y ordenar por fecha
+  try {
+    // Solicitar la primera página de todos los proveedores al background.
+    const result = await sendMessage({ type: 'FETCH_ALL_ACTIVITY', forceRefresh, page: 1 });
+
+    // Combinar la actividad de ambos proveedores y ordenar por fecha.
     const ghActivity = result.github?.data || [];
     const glActivity = result.gitlab?.data || [];
     userActivities = mergeAndSortActivities(ghActivity, glActivity);
+
+    // Actualizar el cursor de paginación con lo que cada API nos dijo.
+    // Si el provider no venía en la respuesta (no autenticado / error), marcar hasMore=false.
+    pagination.user.github.hasMore = result.github ? !!result.github.hasMore : false;
+    pagination.user.gitlab.hasMore = result.gitlab ? !!result.gitlab.hasMore : false;
+
     // Solo re-renderizar si estamos viendo la actividad del usuario.
     // Si estamos en el tab de grupos, no queremos pisar la vista del grupo actual.
     if (mainTab === 'user') {
       displayedActivities = userActivities;
+      rebuildSeenIds();
       renderFilteredActivities();
     }
 
@@ -626,17 +655,29 @@ async function loadActivity(forceRefresh = false) {
 }
 
 /**
- * Combina las actividades de GitHub y GitLab, las ordena por fecha (más reciente primero)
- * y limita el resultado a 30 elementos.
+ * Combina las actividades de GitHub y GitLab deduplicando por `id` y ordenando
+ * por fecha descendente. A diferencia de la versión previa ya no corta a 30
+ * elementos: el scroll infinito va acumulando páginas.
  *
  * @param {Array<Object>} ghItems - Elementos de actividad de GitHub.
  * @param {Array<Object>} glItems - Elementos de actividad de GitLab.
- * @returns {Array<Object>} Actividades combinadas, ordenadas y limitadas a 30.
+ * @returns {Array<Object>} Actividades combinadas y ordenadas.
  */
 function mergeAndSortActivities(ghItems, glItems) {
-  return [...ghItems, ...glItems]
-    .sort((a, b) => new Date(b.date) - new Date(a.date)) // Más reciente primero
-    .slice(0, 30); // Limitar a 30 elementos para no sobrecargar el popup
+  const seen = new Set();
+  const out = [];
+  for (const item of [...ghItems, ...glItems]) {
+    if (!item || !item.id || seen.has(item.id)) continue;
+    seen.add(item.id);
+    out.push(item);
+  }
+  out.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return out;
+}
+
+/** Reconstruye `seenActivityIds` a partir del contenido actual de displayedActivities. */
+function rebuildSeenIds() {
+  seenActivityIds = new Set(displayedActivities.map(it => it.id).filter(Boolean));
 }
 
 /**
@@ -646,8 +687,52 @@ function mergeAndSortActivities(ghItems, glItems) {
  *
  * @param {Array<Object>} items - Elementos de actividad a renderizar.
  */
-function renderActivityList(items) {
-  if (items.length === 0) {
+/**
+ * Genera el HTML de un item de actividad (sin el wrapper container).
+ * Se usa tanto para render completo como para append incremental.
+ *
+ * @param {Object} item
+ * @param {number} idx - Índice global dentro del array fuente (items) para localizar en click.
+ * @param {boolean} showActor - Si debe mostrarse el autor (vista de grupos).
+ * @returns {string} HTML de una `.activity-item`.
+ */
+function activityItemHtml(item, idx, showActor) {
+  return `
+    <div class="activity-item type-${item.type}" data-index="${idx}">
+      <div class="activity-type-icon ${item.type}">${getTypeIcon(item.type)}</div>
+      <div class="activity-content">
+        <div class="activity-repo-row">
+          <span class="activity-repo">${escapeHtml(item.repo)}${item.isPrivate ? ' <span class="private-badge">&#128274;</span>' : ''}</span>
+          ${showActor && item.actor ? `<span class="activity-actor" title="${escapeHtml(item.actor)}">@${escapeHtml(item.actor)}</span>` : ''}
+        </div>
+        <div class="activity-title">${escapeHtml(item.title)}</div>
+        <div class="activity-meta">
+          <span class="activity-type-label">${getTypeLabel(item.type)}</span>
+          ${item.branch ? `<span class="activity-branch">${escapeHtml(item.branch)}</span>` : ''}
+          <span class="activity-date">${timeAgo(item.date)}</span>
+          <span class="activity-short-date">${shortDate(item.date)}</span>
+        </div>
+      </div>
+      <span class="activity-provider-badge ${item.provider}">${item.provider === 'github' ? 'GH' : 'GL'}</span>
+    </div>
+  `;
+}
+
+/**
+ * Renderiza la lista de actividades en el DOM.
+ * En modo `append:false` reemplaza el contenido. En modo `append:true` añade
+ * únicamente los items a partir de `startIndex` y re-ata handlers a los nuevos.
+ *
+ * @param {Array<Object>} items - Array fuente completo (ya filtrado).
+ * @param {{append?: boolean, startIndex?: number}} [opts]
+ */
+function renderActivityList(items, opts = {}) {
+  const { append = false, startIndex = 0 } = opts;
+
+  // Desconectar el observer antes de tocar el DOM; se reinicia al final si aplica.
+  disconnectInfiniteScroll();
+
+  if (!append && items.length === 0) {
     // Si estamos en el tab de grupos, mostrar mensaje específico de grupo vacío
     if (mainTab === 'groups') {
       const emptyKey = selectedGroup ? 'status.noActivity' : 'groupTab.selectGroup';
@@ -666,29 +751,39 @@ function renderActivityList(items) {
   // para que sea fácil identificar quién hizo cada cosa dentro del grupo.
   const showActor = mainTab === 'groups';
 
-  // Generar el HTML de todos los elementos de actividad
-  activityList.innerHTML = items.map((item, idx) => `
-    <div class="activity-item type-${item.type}" data-index="${idx}">
-      <div class="activity-type-icon ${item.type}">${getTypeIcon(item.type)}</div>
-      <div class="activity-content">
-        <div class="activity-repo-row">
-          <span class="activity-repo">${escapeHtml(item.repo)}${item.isPrivate ? ' <span class="private-badge">&#128274;</span>' : ''}</span>
-          ${showActor && item.actor ? `<span class="activity-actor" title="${escapeHtml(item.actor)}">@${escapeHtml(item.actor)}</span>` : ''}
-        </div>
-        <div class="activity-title">${escapeHtml(item.title)}</div>
-        <div class="activity-meta">
-          <span class="activity-type-label">${getTypeLabel(item.type)}</span>
-          ${item.branch ? `<span class="activity-branch">${escapeHtml(item.branch)}</span>` : ''}
-          <span class="activity-date">${timeAgo(item.date)}</span>
-          <span class="activity-short-date">${shortDate(item.date)}</span>
-        </div>
-      </div>
-      <span class="activity-provider-badge ${item.provider}">${item.provider === 'github' ? 'GH' : 'GL'}</span>
-    </div>
-  `).join('');
+  if (!append) {
+    // Render completo: reemplaza el contenido.
+    activityList.innerHTML = items.map((item, idx) => activityItemHtml(item, idx, showActor)).join('');
+    attachActivityClickHandlers(items);
+  } else {
+    // Quitar sentinel/footer previos antes de añadir nuevos items (se recrean abajo).
+    removeScrollFooter();
+    const html = items
+      .slice(startIndex)
+      .map((item, i) => activityItemHtml(item, startIndex + i, showActor))
+      .join('');
+    activityList.insertAdjacentHTML('beforeend', html);
+    // Solo re-enganchar los nuevos items (los previos ya tenían handler).
+    const allItems = activityList.querySelectorAll('.activity-item');
+    for (let i = startIndex; i < allItems.length; i++) {
+      const el = allItems[i];
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.index);
+        showDetail(items[idx]);
+      });
+    }
+  }
 
-  // Agregar handlers de clic a cada elemento usando la lista filtrada como fuente,
-  // de modo que el índice del DOM corresponda al mismo item que se renderizó.
+  // Añadir el sentinel (o indicador de fin) al final de la lista cuando haya datos.
+  appendScrollFooter();
+}
+
+/**
+ * Ata handlers de clic a todos los items actuales, usando `items` como fuente
+ * para que el índice del DOM corresponda con el del array.
+ * @param {Array<Object>} items
+ */
+function attachActivityClickHandlers(items) {
   activityList.querySelectorAll('.activity-item').forEach(el => {
     el.addEventListener('click', () => {
       const idx = parseInt(el.dataset.index);
@@ -711,6 +806,246 @@ function renderFilteredActivities() {
 }
 
 /**
+ * Indica si, dado el contexto actual (tab principal + filtro), queda al menos
+ * una fuente con más páginas por cargar.
+ * @returns {boolean}
+ */
+function hasMoreForCurrentView() {
+  if (mainTab === 'groups') {
+    return pagination.group.hasMore;
+  }
+  if (activityFilter === 'github') return pagination.user.github.hasMore;
+  if (activityFilter === 'gitlab') return pagination.user.gitlab.hasMore;
+  // 'all': basta con que uno de los dos tenga más.
+  return pagination.user.github.hasMore || pagination.user.gitlab.hasMore;
+}
+
+/**
+ * Quita del DOM el sentinel / indicador de carga / footer de fin de lista.
+ */
+function removeScrollFooter() {
+  const sentinel = document.getElementById('activity-sentinel');
+  if (sentinel) sentinel.remove();
+  const loading = activityList.querySelector('.activity-loading');
+  if (loading) loading.remove();
+  const end = activityList.querySelector('.activity-end');
+  if (end) end.remove();
+}
+
+/**
+ * Añade al final de la lista el sentinel (si hay más páginas) o un mensaje de
+ * fin de lista (si ya no queda nada por cargar). Se llama tras cada render.
+ */
+function appendScrollFooter() {
+  removeScrollFooter();
+  if (displayedActivities.length === 0) return;
+
+  if (hasMoreForCurrentView()) {
+    const sentinel = document.createElement('div');
+    sentinel.id = 'activity-sentinel';
+    sentinel.className = 'activity-sentinel';
+    activityList.appendChild(sentinel);
+    observeSentinel(sentinel);
+  } else {
+    const end = document.createElement('div');
+    end.className = 'activity-end';
+    end.textContent = t('status.noMoreActivity');
+    activityList.appendChild(end);
+  }
+}
+
+/**
+ * Inicializa (o reutiliza) el IntersectionObserver y observa el sentinel dado.
+ * `rootMargin:200px` dispara la carga un poco antes de que el usuario llegue al final.
+ * @param {HTMLElement} sentinel
+ */
+function observeSentinel(sentinel) {
+  if (!infiniteScrollObserver) {
+    infiniteScrollObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting && !pagination.loading) {
+          loadMoreActivity();
+          break;
+        }
+      }
+    }, { root: activityList, rootMargin: '200px', threshold: 0 });
+  }
+  infiniteScrollObserver.observe(sentinel);
+}
+
+/** Desconecta el observer si existía. Se llama en cada render para evitar fugas. */
+function disconnectInfiniteScroll() {
+  if (infiniteScrollObserver) {
+    infiniteScrollObserver.disconnect();
+  }
+}
+
+/**
+ * Muestra un indicador de carga al final de la lista mientras se piden más páginas.
+ */
+function showLoadingIndicator() {
+  removeScrollFooter();
+  const loading = document.createElement('div');
+  loading.className = 'activity-loading';
+  loading.textContent = t('status.loadingMore');
+  activityList.appendChild(loading);
+}
+
+/**
+ * Pide la siguiente página de actividad y la concatena a `displayedActivities`.
+ * Respeta el tab actual (usuario vs grupos) y el filtro por proveedor.
+ */
+async function loadMoreActivity() {
+  if (pagination.loading) return;
+  if (!hasMoreForCurrentView()) return;
+
+  pagination.loading = true;
+  showLoadingIndicator();
+
+  try {
+    if (mainTab === 'groups') {
+      await loadMoreGroupPage();
+    } else {
+      await loadMoreUserPage();
+    }
+  } catch (err) {
+    // Error al paginar: quitamos el indicador y dejamos el sentinel si aplica.
+    removeScrollFooter();
+    showStatus(err?.message || t('status.activityFailed'), 'warning');
+    appendScrollFooter();
+  } finally {
+    pagination.loading = false;
+  }
+}
+
+/**
+ * Pide una página adicional del tab de usuario, respetando el filtro.
+ * Si el filtro es 'all', pide ambos proveedores en paralelo.
+ */
+async function loadMoreUserPage() {
+  // Determinar qué proveedores necesitan ser paginados en esta tanda.
+  const providers = [];
+  if (activityFilter === 'all' || activityFilter === 'github') {
+    if (pagination.user.github.hasMore && authState.github) providers.push('github');
+  }
+  if (activityFilter === 'all' || activityFilter === 'gitlab') {
+    if (pagination.user.gitlab.hasMore && authState.gitlab) providers.push('gitlab');
+  }
+  if (providers.length === 0) {
+    removeScrollFooter();
+    appendScrollFooter();
+    return;
+  }
+
+  // Pedir la siguiente página de cada proveedor en paralelo.
+  const perProvider = {};
+  await Promise.all(providers.map(async (p) => {
+    const nextPage = pagination.user[p].page + 1;
+    const result = await sendMessage({
+      type: 'FETCH_ALL_ACTIVITY',
+      forceRefresh: false,
+      page: nextPage,
+      providers: [p],
+    });
+    const providerRes = result[p];
+    if (!providerRes) {
+      // Error (ver result.<p>Error). Marcar como sin más para no ciclar.
+      pagination.user[p].hasMore = false;
+      return;
+    }
+    pagination.user[p].page = nextPage;
+    pagination.user[p].hasMore = !!providerRes.hasMore;
+    perProvider[p] = Array.isArray(providerRes.data) ? providerRes.data : [];
+  }));
+
+  appendPagedItems(Object.values(perProvider).flat());
+}
+
+/**
+ * Pide una página adicional del grupo actualmente seleccionado.
+ */
+async function loadMoreGroupPage() {
+  if (!selectedGroup) return;
+  const nextPage = pagination.group.page + 1;
+  const requestedKey = `${selectedGroup.provider}:${selectedGroup.ref}`;
+
+  const result = await sendMessage({
+    type: 'FETCH_GROUP_ACTIVITY',
+    provider: selectedGroup.provider,
+    ref: selectedGroup.ref,
+    forceRefresh: false,
+    page: nextPage,
+  });
+
+  // Guard: si el usuario cambió de grupo mientras llegaba la respuesta, descartar.
+  if (!selectedGroup || `${selectedGroup.provider}:${selectedGroup.ref}` !== requestedKey) {
+    return;
+  }
+
+  pagination.group.page = nextPage;
+  pagination.group.hasMore = !!result.hasMore;
+  appendPagedItems(Array.isArray(result.data) ? result.data : []);
+
+  // Persistir el nuevo estado en el caché en memoria del grupo.
+  groupActivityCache[requestedKey] = {
+    items: displayedActivities.slice(),
+    page: pagination.group.page,
+    hasMore: pagination.group.hasMore,
+  };
+}
+
+/**
+ * Integra una tanda de items nuevos en `displayedActivities`:
+ * deduplicar, determinar si pueden simplemente añadirse al final o hace falta
+ * re-renderizar completo (cuando el orden temporal obliga a intercalar).
+ *
+ * @param {Array<Object>} newItems
+ */
+function appendPagedItems(newItems) {
+  removeScrollFooter();
+
+  // Filtrar duplicados con el Set global.
+  const fresh = [];
+  for (const item of newItems) {
+    if (!item || !item.id || seenActivityIds.has(item.id)) continue;
+    seenActivityIds.add(item.id);
+    fresh.push(item);
+  }
+
+  if (fresh.length === 0) {
+    appendScrollFooter();
+    return;
+  }
+
+  // Ordenar los nuevos por fecha desc.
+  fresh.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // Decidir si todos los items nuevos pueden ir detrás del último item ya renderizado.
+  const lastExisting = displayedActivities[displayedActivities.length - 1];
+  const canAppendClean = !lastExisting
+    || new Date(fresh[0].date) <= new Date(lastExisting.date);
+
+  const prevLen = displayedActivities.length;
+  displayedActivities = displayedActivities.concat(fresh);
+
+  if (canAppendClean) {
+    // Append incremental sobre la lista filtrada.
+    const filtered = (mainTab === 'user' && activityFilter !== 'all')
+      ? displayedActivities.filter(it => it.provider === activityFilter)
+      : displayedActivities;
+    // Calcular cuántos elementos filtrados había antes del append.
+    const prevFilteredLen = (mainTab === 'user' && activityFilter !== 'all')
+      ? displayedActivities.slice(0, prevLen).filter(it => it.provider === activityFilter).length
+      : prevLen;
+    renderActivityList(filtered, { append: true, startIndex: prevFilteredLen });
+  } else {
+    // Re-ordenar todo y re-renderizar desde cero (fallback raro en la práctica).
+    displayedActivities.sort((a, b) => new Date(b.date) - new Date(a.date));
+    renderFilteredActivities();
+  }
+}
+
+/**
  * Cambia el filtro activo, actualiza la UI de los botones, persiste la preferencia
  * y re-renderiza la lista de actividad.
  *
@@ -722,6 +1057,7 @@ function setActivityFilter(filter) {
     btn.classList.toggle('active', btn.dataset.filter === filter);
   });
   chrome.storage.local.set({ activity_filter: filter });
+  // Re-render: el sentinel/fin-de-lista se recalcula según hasMore del nuevo filtro.
   renderFilteredActivities();
 }
 
@@ -1000,6 +1336,7 @@ async function setMainTab(tab) {
  */
 function enterUserTab() {
   displayedActivities = userActivities;
+  rebuildSeenIds();
   renderFilteredActivities();
 }
 
@@ -1187,11 +1524,19 @@ async function loadGroupActivity(group, forceRefresh = false) {
   const cacheKey = `${group.provider}:${group.ref}`;
 
   // Render instantáneo desde el caché en memoria si existe y no estamos forzando.
+  // El caché ahora guarda {items, page, hasMore} para preservar el scroll infinito
+  // al navegar entre grupos.
   if (!forceRefresh && groupActivityCache[cacheKey]) {
-    displayedActivities = groupActivityCache[cacheKey];
+    const cached = groupActivityCache[cacheKey];
+    displayedActivities = cached.items.slice();
+    pagination.group = { page: cached.page, hasMore: cached.hasMore };
+    rebuildSeenIds();
     renderFilteredActivities();
     return;
   }
+
+  // Reset de la paginación al entrar a un grupo "fresco".
+  pagination.group = { page: 1, hasMore: true };
 
   // Mostrar estado de carga solo si no tenemos nada que mostrar aún.
   activityList.innerHTML = `<div class="activity-empty">${t('groupTab.loadingActivity')}</div>`;
@@ -1204,6 +1549,7 @@ async function loadGroupActivity(group, forceRefresh = false) {
       provider: group.provider,
       ref: group.ref,
       forceRefresh,
+      page: 1,
     });
 
     // Guard de respuesta obsoleta: si el usuario cambió de grupo mientras llegaba
@@ -1213,8 +1559,10 @@ async function loadGroupActivity(group, forceRefresh = false) {
     }
 
     const items = Array.isArray(result.data) ? result.data : [];
-    groupActivityCache[cacheKey] = items;
+    pagination.group.hasMore = !!result.hasMore;
+    groupActivityCache[cacheKey] = { items, page: 1, hasMore: pagination.group.hasMore };
     displayedActivities = items;
+    rebuildSeenIds();
     renderFilteredActivities();
 
     if (result.stale) {

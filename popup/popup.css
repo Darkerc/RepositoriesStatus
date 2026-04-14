@@ -817,6 +817,31 @@ h1 {
   font-size: 13px;
 }
 
+/* Sentinel invisible para el IntersectionObserver del scroll infinito */
+.activity-sentinel {
+  height: 1px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* Indicador mientras se carga la siguiente página de actividad */
+.activity-loading {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 10px 0;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Mensaje al final de la lista cuando no hay más páginas por cargar */
+.activity-end {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 10px 0;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
 /* ── Detail Panel ── */
 .activity-detail.hidden {
   display: none;
