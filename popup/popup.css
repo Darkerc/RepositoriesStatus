@@ -843,6 +843,10 @@ h1 {
 }
 
 /* ── Detail Panel ── */
+.activity-detail {
+  box-shadow: 0 -3px 3px var(--color-detail-shadow);
+}
+
 .activity-detail.hidden {
   display: none;
 }
@@ -852,7 +856,6 @@ h1 {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
-  box-shadow: 0 -2px 0 var(--color-detail-shadow);
   padding-top: 3px;
 }
 
