@@ -458,6 +458,20 @@ h1 {
   margin: 0 6px;
 }
 
+.heatmap-legend .stats-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin: 0 3px;
+}
+
+.heatmap-legend .stats-label { color: var(--color-text-muted); }
+
+.heatmap-legend .stats-value {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
 /* ── Activity Section ── */
 .activity-section {
   border-top: 1px solid var(--color-border-section);

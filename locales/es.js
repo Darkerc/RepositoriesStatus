@@ -103,6 +103,9 @@ export default {
   "heatmap.gitlabColor": "GitLab",
   "heatmap.mixedColor": "Mixto",
   "heatmap.resetColors": "Restablecer",
+  "heatmap.daysWorkedTotal": "Días trabajados",
+  "heatmap.daysWorkedGitHub": "GitHub",
+  "heatmap.daysWorkedGitLab": "GitLab",
 
   // ── Months ──
   "month.0": "Ene",
