@@ -107,6 +107,25 @@ export default {
   "heatmap.daysWorkedGitHub": "GitHub",
   "heatmap.daysWorkedGitLab": "GitLab",
 
+  // \u2500\u2500 Carousel \u2500\u2500
+  "carousel.prev": "\u4e0a\u4e00\u4e2a",
+  "carousel.next": "\u4e0b\u4e00\u4e2a",
+  "carousel.heatmap": "\u70ed\u529b\u56fe",
+  "carousel.languages": "\u5e38\u7528\u8bed\u8a00",
+  "carousel.togglePanelShow": "\u663e\u793a\u8d21\u732e\u9762\u677f",
+  "carousel.togglePanelHide": "\u9690\u85cf\u8d21\u732e\u9762\u677f",
+
+  // \u2500\u2500 Languages \u2500\u2500
+  "languages.title": "\u5e38\u7528\u8bed\u8a00",
+  "languages.empty": "\u6682\u65e0\u8bed\u8a00\u6570\u636e\u3002",
+  "languages.loading": "\u6b63\u5728\u8ba1\u7b97\u5e38\u7528\u8bed\u8a00\u2026",
+  "languages.connectFirst": "\u8fde\u63a5\u4e00\u4e2a\u63d0\u4f9b\u5546\u4ee5\u67e5\u770b\u4f60\u7684\u5e38\u7528\u8bed\u8a00\u3002",
+  "languages.loadFailed": "\u65e0\u6cd5\u52a0\u8f7d\u8bed\u8a00\u3002",
+  "languages.totalLangs": "{count} \u79cd\u8bed\u8a00",
+  "languages.totalBytes": "{size} \u4ee3\u7801",
+  "languages.others": "\u5176\u4ed6",
+  "languages.othersTitle": "\u5176\u4ed6 ({count})",
+
   // ── Months ──
   "month.0": "1\u6708",
   "month.1": "2\u6708",

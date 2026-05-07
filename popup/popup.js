@@ -28,6 +28,7 @@
  */
 
 import { renderHeatmap, setCustomColors, getBaseColors } from '../lib/heatmap.js';
+import { renderLanguages } from '../lib/languages.js';
 import { initI18n, t, setLocale, getLocale, translatePage } from '../lib/i18n.js';
 
 // ── Referencias a elementos del DOM ──
@@ -101,8 +102,10 @@ const activityFilterGroup = document.querySelector('.activity-filter-group');
 /** @type {HTMLElement} Toolbar de acciones del heatmap (ocultar/descargar) */
 const heatmapToolbar = document.getElementById('heatmap-toolbar');
 
-/** @type {HTMLButtonElement} Botón para ocultar/mostrar el heatmap */
-const btnToggleHeatmap = document.getElementById('btn-toggle-heatmap');
+/** @type {HTMLButtonElement} Botón global para ocultar/mostrar el carrusel completo
+ *  (heatmap + lenguajes). Vive en el header, no dentro del slide del heatmap, para
+ *  que su efecto sea claramente "esconder toda la sección de contribuciones". */
+const btnToggleCarousel = document.getElementById('btn-toggle-carousel');
 
 /** @type {HTMLButtonElement} Botón para descargar el heatmap como imagen */
 const btnDownloadHeatmap = document.getElementById('btn-download-heatmap');
@@ -137,6 +140,24 @@ const iconMoon = document.getElementById('icon-moon');
 /** @type {SVGElement} Icono de monitor (tema sistema) */
 const iconSystem = document.getElementById('icon-system');
 
+/** @type {HTMLElement} Contenedor raíz del carrusel (lo que se colapsa con el toggle) */
+const carousel = document.getElementById('carousel');
+
+/** @type {HTMLElement} Track del carrusel (heatmap + lenguajes) */
+const carouselTrack = document.getElementById('carousel-track');
+
+/** @type {HTMLButtonElement} Botón anterior del carrusel */
+const carouselPrev = document.getElementById('carousel-prev');
+
+/** @type {HTMLButtonElement} Botón siguiente del carrusel */
+const carouselNext = document.getElementById('carousel-next');
+
+/** @type {HTMLElement} Contenedor de los dots de navegación del carrusel */
+const carouselDots = document.getElementById('carousel-dots');
+
+/** @type {HTMLElement} Contenedor donde se renderiza la barra de lenguajes */
+const languagesContainer = document.getElementById('languages-container');
+
 // ── Estado de la aplicación ──
 
 /** @type {{github: boolean, gitlab: boolean}} Estado de autenticación de cada proveedor */
@@ -147,6 +168,15 @@ let githubData = null;
 
 /** @type {Object.<string, number>|null} Datos de contribuciones de GitLab */
 let gitlabData = null;
+
+/** @type {Object|null} Datos de lenguajes de GitHub: { languages, repoCount } */
+let githubLanguages = null;
+
+/** @type {Object|null} Datos de lenguajes de GitLab: { languages, repoCount } */
+let gitlabLanguages = null;
+
+/** @type {number} Índice del slide activo del carrusel (0=heatmap, 1=lenguajes) */
+let carouselIndex = 0;
 
 /** @type {Array<Object>} Lista combinada y ordenada de actividades recientes del usuario */
 let userActivities = [];
@@ -221,6 +251,7 @@ async function init() {
   initLanguageSelector();
   await initActivityFilter();
   await initMainTabs();
+  await initCarousel();
 
   await refreshAuthState();
   await loadCachedDataFromStorage();
@@ -230,11 +261,70 @@ async function init() {
     await setMainTab('groups');
   }
 
-  // Cargar datos frescos de contribuciones y actividad en paralelo
+  // Cargar datos frescos de contribuciones, actividad y lenguajes en paralelo
   await Promise.all([
     loadContributions(),
     loadActivity(),
+    loadLanguages(),
   ]);
+}
+
+// ── Carrusel (heatmap / lenguajes) ──
+
+/** @const {number} Cantidad de slides del carrusel. */
+const CAROUSEL_SLIDES = 2;
+
+/**
+ * Inicializa el carrusel: lee la última posición persistida, conecta los listeners
+ * de prev/next/dots y aplica el slide inicial.
+ */
+async function initCarousel() {
+  try {
+    const stored = await chrome.storage.local.get('carousel_index');
+    if (Number.isInteger(stored.carousel_index) &&
+        stored.carousel_index >= 0 &&
+        stored.carousel_index < CAROUSEL_SLIDES) {
+      carouselIndex = stored.carousel_index;
+    }
+  } catch { /* mantener 0 */ }
+
+  applyCarousel();
+
+  carouselPrev.addEventListener('click', () => setCarouselIndex(carouselIndex - 1));
+  carouselNext.addEventListener('click', () => setCarouselIndex(carouselIndex + 1));
+  carouselDots.querySelectorAll('.carousel-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      const idx = parseInt(dot.dataset.index, 10);
+      if (Number.isInteger(idx)) setCarouselIndex(idx);
+    });
+  });
+}
+
+/**
+ * Cambia el slide activo del carrusel. Hace clamp dentro del rango válido,
+ * persiste la elección y aplica el desplazamiento.
+ *
+ * @param {number} idx
+ */
+function setCarouselIndex(idx) {
+  const clamped = Math.max(0, Math.min(CAROUSEL_SLIDES - 1, idx));
+  if (clamped === carouselIndex) return;
+  carouselIndex = clamped;
+  try { chrome.storage.local.set({ carousel_index: carouselIndex }); } catch { /* ignore */ }
+  applyCarousel();
+}
+
+/**
+ * Aplica visualmente el estado actual del carrusel: traslada la track al slide
+ * correspondiente, resalta el dot activo y deshabilita los botones extremos.
+ */
+function applyCarousel() {
+  carouselTrack.style.transform = `translateX(-${carouselIndex * 100}%)`;
+  carouselDots.querySelectorAll('.carousel-dot').forEach(dot => {
+    dot.classList.toggle('active', parseInt(dot.dataset.index, 10) === carouselIndex);
+  });
+  carouselPrev.disabled = carouselIndex === 0;
+  carouselNext.disabled = carouselIndex === CAROUSEL_SLIDES - 1;
 }
 
 // ── Tema (claro / oscuro / sistema) ──
@@ -453,8 +543,13 @@ function updateButtons() {
   // Deshabilitar refresco si no hay proveedores conectados
   btnRefresh.disabled = !authState.github && !authState.gitlab;
 
+  // El botón de colapso del carrusel solo tiene sentido cuando hay datos por mostrar.
+  // Replica el criterio que tenía la heatmap-toolbar pero a nivel global.
+  const anyProvider = authState.github || authState.gitlab;
+  btnToggleCarousel.classList.toggle('hidden', !anyProvider);
+
   // Mostrar/ocultar la sección de actividad según haya proveedores conectados
-  activitySection.style.display = (authState.github || authState.gitlab) ? '' : 'none';
+  activitySection.style.display = anyProvider ? '' : 'none';
 
   // Deshabilitar los filtros de proveedores no conectados
   filterGitHub.disabled = !authState.github;
@@ -506,6 +601,7 @@ async function loadCachedDataFromStorage() {
     const result = await chrome.storage.local.get([
       'github_contributions', 'gitlab_contributions',
       'github_activity', 'gitlab_activity',
+      'github_languages', 'gitlab_languages',
     ]);
 
     // Extraer los datos de contribuciones (están envueltos en { data, timestamp })
@@ -516,6 +612,13 @@ async function loadCachedDataFromStorage() {
     if (githubData || gitlabData) {
       renderHeatmap(heatmapContainer, githubData, gitlabData);
       setHeatmapToolbarVisible(true);
+    }
+
+    // Lenguajes cacheados (para mostrar la barra de inmediato si hay datos previos)
+    if (result.github_languages?.data) githubLanguages = result.github_languages.data;
+    if (result.gitlab_languages?.data) gitlabLanguages = result.gitlab_languages.data;
+    if (githubLanguages || gitlabLanguages) {
+      renderLanguages(languagesContainer, githubLanguages, gitlabLanguages);
     }
 
     // Cargar y renderizar la actividad cacheada del usuario
@@ -600,6 +703,53 @@ async function loadContributions(forceRefresh = false) {
   } finally {
     // Detener la animación del botón de refresco
     btnRefresh.classList.remove('spinning');
+  }
+}
+
+// ── Lenguajes más usados ──
+
+/**
+ * Carga los lenguajes más usados de todos los proveedores conectados y
+ * actualiza la barra apilada del segundo slide del carrusel.
+ *
+ * Misma estrategia que loadContributions:
+ * - Mantiene los datos previos si una llamada falla.
+ * - Reporta UNAUTHORIZED actualizando el authState.
+ * - Permite forceRefresh para saltar el caché.
+ *
+ * @param {boolean} [forceRefresh=false]
+ */
+async function loadLanguages(forceRefresh = false) {
+  if (!authState.github && !authState.gitlab) {
+    languagesContainer.innerHTML = `<p class="languages-placeholder">${t('languages.connectFirst')}</p>`;
+    return;
+  }
+
+  // Si no hay datos previos, mostrar placeholder de carga.
+  if (!githubLanguages && !gitlabLanguages) {
+    renderLanguages(languagesContainer, null, null, { loading: true });
+  }
+
+  try {
+    const result = await sendMessage({ type: 'FETCH_ALL_LANGUAGES', forceRefresh });
+    githubLanguages = result.github?.data || githubLanguages;
+    gitlabLanguages = result.gitlab?.data || gitlabLanguages;
+    renderLanguages(languagesContainer, githubLanguages, gitlabLanguages);
+
+    if (result.githubError === 'UNAUTHORIZED') {
+      authState.github = false;
+      updateButtons();
+    }
+    if (result.gitlabError === 'UNAUTHORIZED') {
+      authState.gitlab = false;
+      updateButtons();
+    }
+  } catch (err) {
+    if (githubLanguages || gitlabLanguages) {
+      // Mantener los datos previos: no se reescribe el render (UI sigue mostrando lo último).
+      return;
+    }
+    renderLanguages(languagesContainer, null, null, { error: err?.message || t('languages.loadFailed') });
   }
 }
 
@@ -1604,13 +1754,14 @@ btnGitHub.addEventListener('click', async () => {
       // Ya está conectado: desconectar
       await sendMessage({ type: 'DISCONNECT', provider: 'github' });
       githubData = null; // Limpiar datos locales
+      githubLanguages = null;
     } else {
       // No está conectado: iniciar flujo de autenticación
       await sendMessage({ type: 'AUTH_GITHUB' });
     }
     // Actualizar UI y recargar datos
     await refreshAuthState();
-    await Promise.all([loadContributions(), loadActivity()]);
+    await Promise.all([loadContributions(), loadActivity(), loadLanguages()]);
   } catch (err) {
     showStatus(`GitHub: ${t('status.loadFailed', { error: err.message })}`, 'error');
   } finally {
@@ -1628,6 +1779,7 @@ btnGitLab.addEventListener('click', async () => {
     if (authState.gitlab) {
       await sendMessage({ type: 'DISCONNECT', provider: 'gitlab' });
       gitlabData = null;
+      gitlabLanguages = null;
     } else {
       // Leer la URL base de GitLab configurada por el usuario (o usar la por defecto)
       const stored = await chrome.storage.sync.get('gitlab_base_url');
@@ -1635,7 +1787,7 @@ btnGitLab.addEventListener('click', async () => {
       await sendMessage({ type: 'AUTH_GITLAB', baseUrl });
     }
     await refreshAuthState();
-    await Promise.all([loadContributions(), loadActivity()]);
+    await Promise.all([loadContributions(), loadActivity(), loadLanguages()]);
   } catch (err) {
     showStatus(`GitLab: ${t('status.loadFailed', { error: err.message })}`, 'error');
   } finally {
@@ -1651,6 +1803,7 @@ btnGitLab.addEventListener('click', async () => {
  */
 btnRefresh.addEventListener('click', () => {
   loadContributions(true);
+  loadLanguages(true);
   if (mainTab === 'groups' && selectedGroup) {
     loadGroupActivity(selectedGroup, true);
   } else {
@@ -1684,27 +1837,33 @@ function setHeatmapToolbarVisible(show) {
 }
 
 /**
- * Aplica el estado de visibilidad del heatmap (colapsado o expandido).
- * Actualiza el icono del botón de toggle y el estado del botón de descarga.
- * @param {boolean} collapsed - Si el heatmap debe estar oculto.
+ * Aplica el estado de visibilidad del carrusel entero (heatmap + lenguajes).
+ * Actualiza el icono del botón del header y se asegura de cerrar el panel de
+ * colores si está abierto.
+ *
+ * @param {boolean} collapsed - Si el carrusel debe estar oculto.
  */
-function applyHeatmapCollapsed(collapsed) {
-  heatmapContainer.classList.toggle('collapsed', collapsed);
+function applyCarouselCollapsed(collapsed) {
+  carousel.classList.toggle('collapsed', collapsed);
   document.getElementById('icon-eye-open').classList.toggle('hidden', collapsed);
   document.getElementById('icon-eye-closed').classList.toggle('hidden', !collapsed);
-  btnDownloadHeatmap.disabled = collapsed;
-  btnHeatmapColors.disabled = collapsed;
-  btnToggleHeatmap.title = collapsed ? t('heatmap.toggleShow') : t('heatmap.toggleHide');
+  btnToggleCarousel.title = collapsed
+    ? t('carousel.togglePanelShow')
+    : t('carousel.togglePanelHide');
+  btnToggleCarousel.setAttribute(
+    'data-i18n-title',
+    collapsed ? 'carousel.togglePanelShow' : 'carousel.togglePanelHide'
+  );
   if (collapsed) colorPanel.classList.add('hidden');
 }
 
 /**
- * Handler del botón de toggle del heatmap: alterna visibilidad y persiste la preferencia.
+ * Handler del botón de toggle del carrusel: alterna visibilidad y persiste la preferencia.
  */
-btnToggleHeatmap.addEventListener('click', () => {
-  const collapsed = !heatmapContainer.classList.contains('collapsed');
-  applyHeatmapCollapsed(collapsed);
-  localStorage.setItem('heatmap_collapsed', collapsed ? '1' : '0');
+btnToggleCarousel.addEventListener('click', () => {
+  const collapsed = !carousel.classList.contains('collapsed');
+  applyCarouselCollapsed(collapsed);
+  localStorage.setItem('carousel_collapsed', collapsed ? '1' : '0');
 });
 
 // ── Heatmap color picker ──
@@ -1843,9 +2002,19 @@ function drawLegendOnCanvas(ctx, legendEl, canvasW, y) {
   }
 }
 
-// Restaurar la preferencia de visibilidad del heatmap al arrancar
-if (localStorage.getItem('heatmap_collapsed') === '1') {
-  applyHeatmapCollapsed(true);
+// Restaurar preferencia de colapso del carrusel. Migración perezosa desde la
+// clave antigua `heatmap_collapsed` (cuando solo existía el heatmap) a la nueva
+// `carousel_collapsed` para no perder la elección del usuario.
+let _carouselCollapsedPref = localStorage.getItem('carousel_collapsed');
+if (_carouselCollapsedPref === null) {
+  const legacy = localStorage.getItem('heatmap_collapsed');
+  if (legacy !== null) {
+    _carouselCollapsedPref = legacy;
+    localStorage.setItem('carousel_collapsed', legacy);
+  }
+}
+if (_carouselCollapsedPref === '1') {
+  applyCarouselCollapsed(true);
 }
 
 // ── Funciones auxiliares ──
@@ -2008,6 +2177,9 @@ function initLanguageSelector() {
     updateButtons();
     if (githubData || gitlabData) {
       renderHeatmap(heatmapContainer, githubData, gitlabData);
+    }
+    if (githubLanguages || gitlabLanguages) {
+      renderLanguages(languagesContainer, githubLanguages, gitlabLanguages);
     }
     if (displayedActivities.length > 0) {
       renderFilteredActivities();

@@ -28,8 +28,8 @@
  */
 
 import { authenticateGitHub, authenticateGitLab, getAuthState, removeToken, getToken, revokeGitHubGrant } from './lib/auth.js';
-import { fetchGitHubContributions, fetchGitHubActivity, fetchGitHubCommitDetail, fetchGitHubUserOrgs, fetchGitHubGroupActivity } from './lib/github-api.js';
-import { fetchGitLabContributions, fetchGitLabActivity, fetchGitLabCommitDetail, fetchGitLabUserGroups, fetchGitLabGroupActivity } from './lib/gitlab-api.js';
+import { fetchGitHubContributions, fetchGitHubActivity, fetchGitHubCommitDetail, fetchGitHubUserOrgs, fetchGitHubGroupActivity, fetchGitHubLanguages } from './lib/github-api.js';
+import { fetchGitLabContributions, fetchGitLabActivity, fetchGitLabCommitDetail, fetchGitLabUserGroups, fetchGitLabGroupActivity, fetchGitLabLanguages } from './lib/gitlab-api.js';
 import { getCached, setCache, clearCache, clearCacheByPrefix } from './lib/cache.js';
 
 /**
@@ -77,9 +77,10 @@ async function handleMessage(message) {
         if (token) await revokeGitHubGrant(token);
       }
       await removeToken(message.provider);
-      // Limpiar la caché de contribuciones y actividad del proveedor
+      // Limpiar la caché de contribuciones, actividad y lenguajes del proveedor
       await clearCache(`${message.provider}_contributions`);
       await clearCache(`${message.provider}_activity`);
+      await clearCache(`${message.provider}_languages`);
       // Limpiar datos específicos del proveedor (username, proyectos, grupos, actividad de grupos)
       if (message.provider === 'gitlab') {
         await chrome.storage.local.remove(['gitlab_username', 'gitlab_projects']);
@@ -113,6 +114,10 @@ async function handleMessage(message) {
     // Obtener detalles de un commit específico
     case 'FETCH_COMMIT_DETAIL':
       return fetchCommitDetail(message.provider, message.repo, message.sha, message.projectId);
+
+    // Obtener los lenguajes más usados en TODOS los proveedores conectados
+    case 'FETCH_ALL_LANGUAGES':
+      return fetchAllLanguages(message.forceRefresh);
 
     // Obtener la lista de orgs/grupos del usuario para todos los proveedores conectados
     case 'FETCH_USER_GROUPS':
@@ -426,6 +431,72 @@ async function fetchGroupActivity(provider, ref, forceRefresh = false, page = 1)
     }
     throw err;
   }
+}
+
+/**
+ * Obtiene los lenguajes más usados de un proveedor con soporte de caché.
+ * Misma estrategia stale-as-fallback que fetchContributions.
+ *
+ * @param {string} provider - Proveedor ('github' o 'gitlab').
+ * @param {boolean} [forceRefresh=false]
+ * @returns {Promise<{data: Object, fromCache: boolean, stale?: boolean}>}
+ *   data tiene la forma { languages, repoCount } generada por las APIs.
+ */
+async function fetchLanguages(provider, forceRefresh = false) {
+  const cacheKey = `${provider}_languages`;
+
+  if (!forceRefresh) {
+    const cached = await getCached(cacheKey);
+    if (cached) return { data: cached, fromCache: true };
+  }
+
+  try {
+    const data = provider === 'github'
+      ? await fetchGitHubLanguages()
+      : await fetchGitLabLanguages();
+    await setCache(cacheKey, data);
+    return { data, fromCache: false };
+  } catch (err) {
+    if (err.message === 'UNAUTHORIZED') {
+      await removeToken(provider);
+      throw err;
+    }
+    const stale = await getCached(cacheKey);
+    if (stale) return { data: stale, fromCache: true, stale: true };
+    throw err;
+  }
+}
+
+/**
+ * Obtiene los lenguajes de TODOS los proveedores conectados en paralelo.
+ * Errores individuales no tumban al otro proveedor (mismo patrón que
+ * fetchAllContributions / fetchAllActivity).
+ *
+ * @param {boolean} [forceRefresh=false]
+ * @returns {Promise<{github: Object|null, gitlab: Object|null, githubError?: string, gitlabError?: string}>}
+ */
+async function fetchAllLanguages(forceRefresh = false) {
+  const authState = await getAuthState();
+  const result = { github: null, gitlab: null };
+  const promises = [];
+
+  if (authState.github) {
+    promises.push(
+      fetchLanguages('github', forceRefresh)
+        .then(r => { result.github = r; })
+        .catch(err => { result.githubError = err.message; })
+    );
+  }
+  if (authState.gitlab) {
+    promises.push(
+      fetchLanguages('gitlab', forceRefresh)
+        .then(r => { result.gitlab = r; })
+        .catch(err => { result.gitlabError = err.message; })
+    );
+  }
+
+  await Promise.all(promises);
+  return result;
 }
 
 /**

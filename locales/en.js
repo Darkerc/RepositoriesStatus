@@ -107,6 +107,25 @@ export default {
   "heatmap.daysWorkedGitHub": "GitHub",
   "heatmap.daysWorkedGitLab": "GitLab",
 
+  // ── Carousel ──
+  "carousel.prev": "Previous",
+  "carousel.next": "Next",
+  "carousel.heatmap": "Heatmap",
+  "carousel.languages": "Top languages",
+  "carousel.togglePanelShow": "Show contributions panel",
+  "carousel.togglePanelHide": "Hide contributions panel",
+
+  // ── Languages ──
+  "languages.title": "Top languages",
+  "languages.empty": "No language data yet.",
+  "languages.loading": "Calculating top languages…",
+  "languages.connectFirst": "Connect a provider to see your top languages.",
+  "languages.loadFailed": "Could not load languages.",
+  "languages.totalLangs": "{count} languages",
+  "languages.totalBytes": "{size} of code",
+  "languages.others": "Others",
+  "languages.othersTitle": "Other ({count})",
+
   // ── Months ──
   "month.0": "Jan",
   "month.1": "Feb",
